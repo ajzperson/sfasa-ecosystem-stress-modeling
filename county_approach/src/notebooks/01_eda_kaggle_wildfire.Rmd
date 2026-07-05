@@ -1,0 +1,87 @@
+---
+title: "Exploratory Data Analysis"
+subtitle: "Architectures of Resilience — Predicting Ecosystem Collapse"
+author: "SFASA Project"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(lubridate)
+```
+
+## Load Data
+
+Place the Kaggle CSV in `data_common/raw/kaggle/` first, then run this chunk.
+
+```{r load}
+path <- "../../../data_common/raw/kaggle/California_Fire_Incidents_2013-2019_raw.csv"
+df <- read_csv(path)
+glimpse(df)
+```
+
+```{r summary}
+summary(df)
+```
+
+```{r missing}
+df |>
+  summarise(across(everything(), ~ sum(is.na(.)))) |>
+  pivot_longer(everything(), names_to = "column", values_to = "missing") |>
+  arrange(desc(missing))
+```
+
+## Clean Data
+
+```{r clean}
+df_clean <- df |>
+  dplyr::select(
+    -FuelType, -StructuresEvacuated, -PercentContained,
+    -AirTankers, -Dozers, -Engines, -Helicopters, -CrewsInvolved,
+    -Fatalities
+  ) |>
+  filter(year(Started) > 2000) |>
+  filter(!is.na(AcresBurned), AcresBurned > 0)
+
+glimpse(df_clean)
+```
+
+## Filter: Sierra Nevada 2013–2016, Assign Clusters
+
+All 22 official Sierra Nevada counties, split by High Hazard Zone designation
+from the Governor's Tree Mortality Task Force:
+- Sequoia cluster (HHZ): southern and central Sierra, catastrophic collapse
+- Plumas cluster (Non-HHZ): northern Sierra, elevated but buffered mortality
+
+```{r filter}
+hhz_counties <- c("Amador", "Calaveras", "El Dorado", "Fresno", "Kern",
+                  "Madera", "Mariposa", "Placer", "Tulare", "Tuolumne")
+
+non_hhz_counties <- c("Nevada", "Plumas", "Sierra")
+
+all_sierra <- c(hhz_counties, non_hhz_counties)
+
+sierra <- df_clean |>
+  filter(
+    str_detect(Counties, paste(all_sierra, collapse = "|")),
+    between(ArchiveYear, 2013, 2016)
+  ) |>
+  mutate(cluster = case_when(
+    str_detect(Counties, paste(hhz_counties,     collapse = "|")) ~ "Sequoia",
+    str_detect(Counties, paste(non_hhz_counties, collapse = "|")) ~ "Plumas",
+    TRUE ~ NA_character_
+  ))
+
+nrow(sierra)
+sierra |> count(cluster, ArchiveYear)
+```
+
+## Save Processed Data
+
+```{r save}
+out <- "../../data/processed/Sierra_Nevada_Fire_Incidents_2013-2016.csv"
+write_csv(sierra, out)
+message("Saved: data/processed/Sierra_Nevada_Fire_Incidents_2013-2016.csv")
+```

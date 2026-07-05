@@ -1,3 +1,6 @@
+# Large generated data matrices (too big for git)
+*.rds
+
 # History files
 .Rhistory
 .Rapp.history
