@@ -6,7 +6,7 @@ source("county_approach/src/cluster_polygons.R")
 
 raw_file <- "data_common/raw/swe/TerraClimate_swe_2000-2025.nc"
 if (!file.exists(raw_file)) {
-  stop("Raw SWE file not found. Run 02b_download_swe.R first.")
+  stop("Raw SWE file not found. Run src_common/01b_download_swe.R first.")
 }
 r <- rast(raw_file)
 cat(sprintf("✓ Loaded: %d monthly layers\n", nlyr(r)))

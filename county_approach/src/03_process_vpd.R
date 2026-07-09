@@ -8,7 +8,7 @@ source("county_approach/src/cluster_polygons.R")
 # Load raw VPD raster
 raw_file <- "data_common/raw/vpd/TerraClimate_vpd_2000-2025.nc"
 if (!file.exists(raw_file)) {
-  stop("Raw VPD file not found. Run 02_download_vpd.R first.")
+  stop("Raw VPD file not found. Run src_common/01a_download_vpd.R first.")
 }
 r <- rast(raw_file)
 cat(sprintf("✓ Loaded: %d monthly layers\n", nlyr(r)))
