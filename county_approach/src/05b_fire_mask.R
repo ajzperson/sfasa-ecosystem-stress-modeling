@@ -13,7 +13,7 @@ library(tidyverse)
 nc_file <- "data_common/raw/ndvi/MOD13A1.061_500m_aid0001.nc"
 grid <- rast(nc_file, subds = "_500m_16_days_NDVI")[[1]]
 
-fire_file <- "data_common/raw/fire/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg"
+fire_file <- "data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg"
 cat("Reading CAL FIRE FRAP perimeters...\n")
 fires_raw <- st_read(fire_file, layer = "California_Fire_Perimeters__all_", quiet = TRUE)
 

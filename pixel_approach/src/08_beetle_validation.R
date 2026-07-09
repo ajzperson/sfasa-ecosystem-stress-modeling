@@ -34,13 +34,13 @@ bark_beetle_dca <- c(
   11029, 11030, 11036, 11048, 11050, 11900
 )
 
-gdb_zip <- "data_common/raw/beetle/CONUS_Region5_AllYears.gdb.zip"
-gdb_dir <- "data_common/raw/beetle/CONUS_Region5_AllYears.gdb"
+gdb_zip <- "data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip"
+gdb_dir <- "data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb"
 
 if (!dir.exists(gdb_dir)) {
   cat("Unzipping beetle geodatabase...\n")
-  unzip(gdb_zip, exdir = "data_common/raw/beetle")
-  unlink("data_common/raw/beetle/__MACOSX", recursive = TRUE)
+  unzip(gdb_zip, exdir = "data_common/raw/forest_damage")
+  unlink("data_common/raw/forest_damage/__MACOSX", recursive = TRUE)
 }
 
 beetle <- st_read(gdb_dir,

@@ -1,6 +1,10 @@
 # Large generated data matrices (too big for git)
 *.rds
 
+# Large raw satellite data (too big for git; see *_source_location.md)
+data_common/raw/ndvi/*.nc
+data_common/raw/ndwi/*.nc
+
 # History files
 .Rhistory
 .Rapp.history

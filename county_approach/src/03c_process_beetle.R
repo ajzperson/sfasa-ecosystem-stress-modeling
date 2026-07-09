@@ -2,13 +2,13 @@ library(tidyverse)
 library(sf)
 source("county_approach/src/cluster_polygons.R")
 
-zip_file <- "data_common/raw/beetle/CONUS_Region5_AllYears.gdb.zip"
-out_dir  <- "data_common/raw/beetle/CONUS_Region5_AllYears.gdb"
+zip_file <- "data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip"
+out_dir  <- "data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb"
 
 if (!dir.exists(out_dir)) {
   cat("Unzipping beetle geodatabase...\n")
-  unzip(zip_file, exdir = "data_common/raw/beetle")
-  unlink("data_common/raw/beetle/__MACOSX", recursive = TRUE)
+  unzip(zip_file, exdir = "data_common/raw/forest_damage")
+  unlink("data_common/raw/forest_damage/__MACOSX", recursive = TRUE)
 }
 
 gdb   <- out_dir
