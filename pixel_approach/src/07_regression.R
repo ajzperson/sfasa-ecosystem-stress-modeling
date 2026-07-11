@@ -3,8 +3,8 @@ library(car)
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 
-cat("Loading pixel_tau.csv...\n")
-d <- read_csv("pixel_approach/data/processed/pixel_tau.csv",
+cat("Loading ndvi_pixel_tau.csv...\n")
+d <- read_csv("pixel_approach/data/processed/ndvi_pixel_tau.csv",
               show_col_types = FALSE) |>
   filter(!is.na(Actual_Drop_15_16), !is.na(tau_r1),
          !is.na(tau_var), !is.na(tau_skew))

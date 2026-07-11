@@ -1,44 +1,87 @@
 library(tidyverse)
 
-# Adds Actual_Drop_15_16 to pixel_tau.csv:
-#   Actual_Drop_15_16 = mean_NDVI(Mar-Nov, 2000-2011) - min_NDVI(Mar-Nov, 2015-2016)
+# Adds an "actual drop" ground-truth column to each index's pixel_tau file:
+#   Actual_*_Drop_15_16 = mean(Mar-Nov, 2000-2011) - min(Mar-Nov, 2015-2016)
 # Growing season only (Mar-Nov) to match the 9-month CSD computation and
 # avoid winter/snow contamination. Positive = collapsed more.
+#
+# NDWI gets its own Actual_NDWI_Drop_15_16 (computed identically, from its
+# own matrix) rather than reusing NDVI's — the two clustering pipelines are
+# independent, so each index's tau is validated against its own future
+# collapse, matching the standard CSD-literature approach (does a variable's
+# own destabilization signal forecast its own future collapse).
+
+# --------------------------------------------------------------------------
+# Parameters — set from console before source()ing to override defaults:
+#   INDICES <- c("ndvi", "ndwi")  # set to c("ndvi") or c("ndwi") to run only one
+# --------------------------------------------------------------------------
+if (!exists("INDICES")) INDICES <- c("ndvi", "ndwi")
+
+index_config <- list(
+  ndvi = list(
+    tau_path = "pixel_approach/data/processed/ndvi_pixel_tau.csv",
+    mat_path = "pixel_approach/data/processed/ndvi_matrix.rds",
+    drop_col = "Actual_Drop_15_16",
+    label    = "NDVI"
+  ),
+  ndwi = list(
+    tau_path = "pixel_approach/data/processed/ndwi_pixel_tau.csv",
+    mat_path = "pixel_approach/data/processed/ndwi_matrix.rds",
+    drop_col = "Actual_NDWI_Drop_15_16",
+    label    = "NDWI"
+  )
+)
 
 # min(x, na.rm=TRUE) on an all-NA row returns Inf with a warning instead of NA.
-# safe_min() avoids that — needed since some pixels have zero valid NDVI months
-# in the 2015-2016 window despite having enough 2000-2014 data to pass 03's checks.
+# safe_min() avoids that — needed since some pixels have zero valid months in
+# the 2015-2016 window despite having enough 2000-2014 data to pass 03's checks.
 safe_min <- function(x) if (all(is.na(x))) NA_real_ else min(x, na.rm = TRUE)
 
-cat("Loading inputs...\n")
-pixel_tau <- read_csv("pixel_approach/data/processed/pixel_tau.csv",
-                      show_col_types = FALSE) |>
-  select(-any_of("Corrected_Drop_15_16"))  # drop stale column from older runs
-ndvi_mat  <- readRDS("pixel_approach/data/processed/ndvi_matrix.rds")
+add_actual_drop <- function(tau_path, mat_path, drop_col, var_label) {
+  cat(sprintf("\n=== %s ===\n", var_label))
+  cat("Loading inputs...\n")
+  pixel_tau <- read_csv(tau_path, show_col_types = FALSE)
+  mat       <- readRDS(mat_path)
 
-col_dates  <- colnames(ndvi_mat)
-col_months <- as.integer(format(as.Date(col_dates), "%m"))
-gs_months  <- col_months %in% 3:11   # growing season: Mar–Nov
+  col_dates  <- colnames(mat)
+  col_months <- as.integer(format(as.Date(col_dates), "%m"))
+  gs_months  <- col_months %in% 3:11   # growing season: Mar–Nov
 
-# Baseline: 2000-2011, growing season only
-baseline_cols <- col_dates >= "2000-02-01" & col_dates <= "2011-12-01" & gs_months
-cat(sprintf("✓ Baseline columns (2000-2011, Mar-Nov): %d months\n", sum(baseline_cols)))
+  # Baseline: 2000-2011, growing season only
+  baseline_cols <- col_dates >= "2000-02-01" & col_dates <= "2011-12-01" & gs_months
+  cat(sprintf("✓ Baseline columns (2000-2011, Mar-Nov): %d months\n", sum(baseline_cols)))
 
-# Collapse window: 2015-2016, growing season only
-drop_cols <- col_dates >= "2015-01-01" & col_dates <= "2016-12-01" & gs_months
-cat(sprintf("✓ Collapse columns (2015-2016, Mar-Nov): %d months\n", sum(drop_cols)))
+  # Collapse window: 2015-2016, growing season only
+  drop_cols <- col_dates >= "2015-01-01" & col_dates <= "2016-12-01" & gs_months
+  cat(sprintf("✓ Collapse columns (2015-2016, Mar-Nov): %d months\n", sum(drop_cols)))
 
-# Compute per pixel
-cat("Computing baseline mean and 2015-2016 min...\n")
-baseline_mean  <- rowMeans(ndvi_mat[, baseline_cols], na.rm = TRUE)
-min_2015_2016  <- apply(ndvi_mat[, drop_cols], 1, safe_min)
+  # Compute per pixel
+  cat("Computing baseline mean and 2015-2016 min...\n")
+  baseline_mean <- rowMeans(mat[, baseline_cols, drop = FALSE], na.rm = TRUE)
+  min_2015_2016 <- apply(mat[, drop_cols, drop = FALSE], 1, safe_min)
 
-pixel_tau$Actual_Drop_15_16 <- round(baseline_mean - min_2015_2016, 4)
+  # pixel_tau[[drop_col]] below is a positional assignment (no join) —
+  # relies entirely on pixel_tau and mat sharing the same pixel_id row
+  # order. That's true today (both come from the same 1-indexed pipeline),
+  # but nothing else here checks it; a silent misalignment here would
+  # assign every drop value to the wrong pixel with no error at all.
+  # (Uses == rather than identical(): pixel_id round-trips through CSV as
+  # double, not integer, so identical() against seq_len()'s integer output
+  # would false-positive on a type mismatch even when values match.)
+  stopifnot(all(pixel_tau$pixel_id == seq_len(nrow(mat))))
 
-cat(sprintf("✓ Actual_Drop_15_16 range: %.4f to %.4f (mean: %.4f)\n",
-            min(pixel_tau$Actual_Drop_15_16, na.rm = TRUE),
-            max(pixel_tau$Actual_Drop_15_16, na.rm = TRUE),
-            mean(pixel_tau$Actual_Drop_15_16, na.rm = TRUE)))
+  pixel_tau[[drop_col]] <- round(baseline_mean - min_2015_2016, 4)
 
-write_csv(pixel_tau, "pixel_approach/data/processed/pixel_tau.csv")
-cat("✓ Saved: pixel_approach/data/processed/pixel_tau.csv\n")
+  cat(sprintf("✓ %s range: %.4f to %.4f (mean: %.4f)\n", drop_col,
+              min(pixel_tau[[drop_col]], na.rm = TRUE),
+              max(pixel_tau[[drop_col]], na.rm = TRUE),
+              mean(pixel_tau[[drop_col]], na.rm = TRUE)))
+
+  write_csv(pixel_tau, tau_path)
+  cat(sprintf("✓ Saved: %s\n", tau_path))
+}
+
+for (idx in INDICES) {
+  cfg <- index_config[[idx]]
+  add_actual_drop(cfg$tau_path, cfg$mat_path, cfg$drop_col, cfg$label)
+}
