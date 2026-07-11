@@ -1,10 +1,11 @@
 library(tidyverse)
 library(sf)
 
-# Three spatial heatmaps of per-pixel CSD and collapse metrics:
+# Spatial heatmaps of per-pixel CSD and collapse metrics:
 #   (1) tau_r1           — lag-1 autocorrelation trend
-#   (2) tau_var          — variance trend
-#   (3) Actual_Drop_15_16 — observed NDVI drop (baseline 2000-2011 mean minus
+#   (2) tau_var           — variance trend
+#   (3) tau_skew          — skewness trend
+#   (4) Actual_Drop_15_16 — observed NDVI drop (baseline 2000-2011 mean minus
 #                           min NDVI 2015-2016); positive = collapsed more
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
@@ -44,25 +45,25 @@ plot_heatmap <- function(data, col, title, low_col, high_col, out_file) {
 }
 
 plot_heatmap(d, "tau_r1",
-             "Kendall's τ — Lag-1 Autocorrelation (r₁) Trend",
+             "Kendall's tau - Lag-1 Autocorrelation (r1) Trend",
              low_col  = "#2166AC",
              high_col = "#D73027",
              out_file = "pixel_approach/charts/heatmap_tau_r1.pdf")
 
 plot_heatmap(d, "tau_var",
-             "Kendall's τ — Variance Trend",
+             "Kendall's tau - Variance Trend",
              low_col  = "#2166AC",
              high_col = "#D73027",
              out_file = "pixel_approach/charts/heatmap_tau_var.pdf")
 
 plot_heatmap(d, "tau_skew",
-             "Kendall's τ — Skewness Trend\n(negative = more stressed; red = worse)",
+             "Kendall's tau - Skewness Trend\n(negative = more stressed; red = worse)",
              low_col  = "#D73027",
              high_col = "#2166AC",
              out_file = "pixel_approach/charts/heatmap_tau_skew.pdf")
 
 plot_heatmap(d, "Actual_Drop_15_16",
-             "Actual NDVI Drop 2015–2016\n(baseline 2000–2011 mean − min NDVI 2015–2016)",
+             "Actual NDVI Drop 2015-2016\n(baseline 2000-2011 mean - min NDVI 2015-2016)",
              low_col  = "#2166AC",
              high_col = "#D73027",
              out_file = "pixel_approach/charts/heatmap_actual_drop.pdf")

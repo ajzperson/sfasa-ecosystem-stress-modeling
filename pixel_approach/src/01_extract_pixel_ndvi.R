@@ -42,8 +42,12 @@ month_labels <- as.character(floor_date(dates_16day, "month"))
 r_monthly    <- tapp(r, index = month_labels, fun = mean, na.rm = TRUE)
 cat(sprintf("✓ %d monthly layers produced\n", nlyr(r_monthly)))
 
-# Rename layers to clean date strings (tapp names them by group label)
+# Rename layers to clean date strings (tapp names them by group label).
+# Assumes tapp's groups line up 1:1 and in order with target_months — true for
+# the current MODIS data (no missing months), but not guaranteed by tapp() itself,
+# so assert it rather than silently mislabeling dates if that ever changes.
 target_months       <- seq(as.Date("2000-02-01"), as.Date("2016-12-01"), by = "month")
+stopifnot(nlyr(r_monthly) == length(target_months))
 names(r_monthly)    <- as.character(target_months)
 
 # --- Identify valid pixels ---------------------------------------------

@@ -5,9 +5,15 @@ library(tidyverse)
 # Growing season only (Mar-Nov) to match the 9-month CSD computation and
 # avoid winter/snow contamination. Positive = collapsed more.
 
+# min(x, na.rm=TRUE) on an all-NA row returns Inf with a warning instead of NA.
+# safe_min() avoids that — needed since some pixels have zero valid NDVI months
+# in the 2015-2016 window despite having enough 2000-2014 data to pass 03's checks.
+safe_min <- function(x) if (all(is.na(x))) NA_real_ else min(x, na.rm = TRUE)
+
 cat("Loading inputs...\n")
 pixel_tau <- read_csv("pixel_approach/data/processed/pixel_tau.csv",
-                      show_col_types = FALSE)
+                      show_col_types = FALSE) |>
+  select(-any_of("Corrected_Drop_15_16"))  # drop stale column from older runs
 ndvi_mat  <- readRDS("pixel_approach/data/processed/ndvi_matrix.rds")
 
 col_dates  <- colnames(ndvi_mat)
@@ -25,7 +31,7 @@ cat(sprintf("✓ Collapse columns (2015-2016, Mar-Nov): %d months\n", sum(drop_c
 # Compute per pixel
 cat("Computing baseline mean and 2015-2016 min...\n")
 baseline_mean  <- rowMeans(ndvi_mat[, baseline_cols], na.rm = TRUE)
-min_2015_2016  <- apply(ndvi_mat[, drop_cols], 1, min, na.rm = TRUE)
+min_2015_2016  <- apply(ndvi_mat[, drop_cols], 1, safe_min)
 
 pixel_tau$Actual_Drop_15_16 <- round(baseline_mean - min_2015_2016, 4)
 

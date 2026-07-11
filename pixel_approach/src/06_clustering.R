@@ -5,9 +5,9 @@ library(multcompView)
 library(ggsignif)
 library(cluster)
 
-# K-means clustering on tau_r1 + tau_var + tau_skew (all three CSD signals).
-# tau_skew included after VIF confirmed no multicollinearity (all VIF ~1.01).
-# Actual_Drop_15_16 is NOT a clustering feature — post-hoc validation only.
+# K-means clustering on tau_r1 + tau_var. tau_skew dropped: 82% cluster
+# agreement with the 3-feature version and no change to validation results.
+# Actual_Drop_15_16 is NOT a clustering feature - post-hoc validation only.
 #
 # Outputs:
 #   pixel_approach/data/processed/pixel_clusters.csv
@@ -31,10 +31,10 @@ d <- read_csv("pixel_approach/data/processed/pixel_tau.csv",
 cat(sprintf("✓ %d pixels with valid tau_r1, tau_var, tau_skew\n", nrow(d)))
 
 # Scale features before clustering (Euclidean distance is scale-sensitive)
-feat <- d |> select(tau_r1, tau_var, tau_skew) |> scale()
+feat <- d |> select(tau_r1, tau_var) |> scale()
 
 # --------------------------------------------------------------------------
-# 2. K sweep — elbow + silhouette (K = 2 to 8)
+# 2. K sweep - elbow + silhouette (K = 2 to 8)
 # --------------------------------------------------------------------------
 cat("Running K sweep (K=2 to 8) for elbow and silhouette plots...\n")
 
@@ -84,7 +84,7 @@ p_sil <- ggplot(sweep_df, aes(x = k, y = silhouette)) +
 
 p_sweep <- (p_elbow + p_sil) +
   plot_annotation(
-    title    = sprintf("K-means Hyperparameter Sweep (K = 2–8); selected K = %d shown in red", K),
+    title    = sprintf("K-means Hyperparameter Sweep (K = 2-8); selected K = %d shown in red", K),
     theme    = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
   )
 
@@ -103,10 +103,10 @@ d$cluster_raw <- km$cluster
 
 # Re-label clusters by composite stress rank so colors are semantically
 # consistent with the heatmaps (red = more stressed, blue = less stressed).
-# Composite = tau_r1 + tau_var - tau_skew (tau_skew negative = worse, so negate).
+# Composite = tau_r1 + tau_var.
 stress_rank <- d |>
   group_by(cluster_raw) |>
-  summarise(composite = mean(tau_r1) + mean(tau_var) - mean(tau_skew),
+  summarise(composite = mean(tau_r1) + mean(tau_var),
             .groups = "drop") |>
   arrange(composite) |>
   mutate(stress_rank = row_number())   # 1 = least stressed, K = most stressed
@@ -127,8 +127,8 @@ centers_orig <- d |>
     tau_r1      = round(mean(tau_r1),   4),
     tau_var     = round(mean(tau_var),  4),
     tau_skew    = round(mean(tau_skew), 4),
-    composite   = round(mean(tau_r1) + mean(tau_var) - mean(tau_skew), 4),
-    Actual_Drop = round(mean(Actual_Drop_15_16, na.rm = TRUE), 4),
+    composite      = round(mean(tau_r1) + mean(tau_var), 4),
+    Actual_Drop    = round(mean(Actual_Drop_15_16, na.rm = TRUE), 4),
     .groups = "drop"
   ) |>
   arrange(as.integer(cluster))
@@ -162,12 +162,12 @@ p_map <- ggplot(d, aes(x = lon, y = lat, color = cluster)) +
   scale_color_manual(
     values = cluster_cols,
     name   = "Stress level",
-    labels = paste0(seq_len(K), c(" — no CSD", rep(" — partial", K - 2), " — full CSD"))
+    labels = paste0(seq_len(K), c(" - no CSD", rep(" - partial", K - 2), " - full CSD"))
   ) +
   coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
   labs(
-    title    = sprintf("K-means Clusters (k=%d) on τ_r1 + τ_var + τ_skew", K),
-    subtitle = "Color: blue = least stressed → red = most stressed (consistent with heatmaps)",
+    title    = sprintf("K-means Clusters (k=%d) on tau_r1 + tau_var", K),
+    subtitle = "Color: blue = least stressed -> red = most stressed (consistent with heatmaps)",
     x = "Longitude", y = "Latitude"
   ) +
   guides(color = guide_legend(override.aes = list(size = 3, alpha = 1))) +
@@ -183,36 +183,27 @@ ggsave("pixel_approach/charts/cluster_map.pdf",
 cat("✓ Saved: pixel_approach/charts/cluster_map.pdf\n")
 
 # --------------------------------------------------------------------------
-# 6. Pairwise scatter: all three 2D projections of the 3D feature space
+# 6. Scatter: tau_r1 vs tau_var (the two clustering features)
 # --------------------------------------------------------------------------
 samp <- d |> slice_sample(n = min(30000, nrow(d)))
-clust_labels <- paste0(seq_len(K), c(" — no CSD", rep(" — partial", K - 2),
-                                     " — full CSD"))
+clust_labels <- paste0(seq_len(K), c(" - no CSD", rep(" - partial", K - 2),
+                                     " - full CSD"))
 
-make_scatter <- function(xvar, yvar, xlabel, ylabel) {
-  ggplot(samp, aes(x = .data[[xvar]], y = .data[[yvar]], color = cluster)) +
-    geom_point(size = 0.3, alpha = 0.4) +
-    scale_color_manual(values = cluster_cols, name = "Stress level",
-                       labels = clust_labels) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-    labs(x = xlabel, y = ylabel) +
-    theme_bw()
-}
-
-p1 <- make_scatter("tau_r1",  "tau_var",  "τ r₁ (autocorrelation)", "τ variance")
-p2 <- make_scatter("tau_r1",  "tau_skew", "τ r₁ (autocorrelation)", "τ skewness")
-p3 <- make_scatter("tau_var", "tau_skew", "τ variance",              "τ skewness")
-
-p_scatter <- (p1 + p2 + p3) +
-  plot_layout(guides = "collect") +
-  plot_annotation(
-    title = "Cluster Separation — Pairwise CSD Feature Projections",
-    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-  )
+p_scatter <- ggplot(samp, aes(x = tau_r1, y = tau_var, color = cluster)) +
+  geom_point(size = 0.3, alpha = 0.4) +
+  scale_color_manual(values = cluster_cols, name = "Stress level",
+                     labels = clust_labels) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  labs(
+    title = "Cluster Separation - tau_r1 vs tau_var",
+    x = "tau_r1 (autocorrelation)", y = "tau_var"
+  ) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 ggsave("pixel_approach/charts/cluster_scatter_pairwise.pdf",
-       plot = p_scatter, width = 14, height = 5, dpi = 150)
+       plot = p_scatter, width = 6, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/cluster_scatter_pairwise.pdf\n")
 
 # --------------------------------------------------------------------------
@@ -250,8 +241,8 @@ p_ts <- ggplot(timelines, aes(x = year, y = ndvi, color = cluster)) +
   geom_line(linewidth = 0.8) +
   geom_point(size = 1.5) +
   scale_color_manual(values = cluster_cols, name = "Stress level",
-    labels = paste0(seq_len(K), c(" — no CSD", rep(" — partial", K - 2),
-                                  " — full CSD"))) +
+    labels = paste0(seq_len(K), c(" - no CSD", rep(" - partial", K - 2),
+                                  " - full CSD"))) +
   geom_vline(xintercept = 2012, linetype = "dashed",
              color = "grey40", linewidth = 0.4) +
   geom_vline(xintercept = 2015, linetype = "dashed",
@@ -261,7 +252,7 @@ p_ts <- ggplot(timelines, aes(x = year, y = ndvi, color = cluster)) +
   annotate("text", x = 2015.2, y = Inf, label = "Peak mortality",
            hjust = 0, vjust = 1.5, size = 2.8, color = "grey40") +
   labs(
-    title = "Annual Mean NDVI Trajectory by Cluster (2000–2016)",
+    title = "Annual Mean NDVI Trajectory by Cluster (2000-2016)",
     x = NULL, y = "Annual Mean NDVI"
   ) +
   theme_bw() +
@@ -272,13 +263,13 @@ ggsave("pixel_approach/charts/cluster_ndvi_timelines.pdf",
 cat("✓ Saved: pixel_approach/charts/cluster_ndvi_timelines.pdf\n")
 
 # --------------------------------------------------------------------------
-# 8. ANOVA + Tukey HSD — run first so letters can go on the boxplot
+# 8. ANOVA + Tukey HSD on Actual_Drop_15_16 by cluster. Spatial thinning
+#    (1 pixel per 0.04° x 0.04° cell, ~4km spacing) avoids inflating the
+#    F-statistic via autocorrelation between neighboring 500m pixels.
+#    Boxplot shows all pixels; ANOVA uses the thinned subset.
 # --------------------------------------------------------------------------
 val_data <- d |> filter(!is.na(Actual_Drop_15_16))
 
-# Spatial thinning: sample one pixel per 0.04° × 0.04° cell (~4km spacing)
-# to avoid inflating F-statistic due to spatial autocorrelation between
-# neighboring 500m pixels. Boxplot shows all pixels; ANOVA uses thinned subset.
 set.seed(SEED)
 val_thin <- val_data |>
   mutate(lon_bin = round(lon / 0.04) * 0.04,
@@ -287,11 +278,10 @@ val_thin <- val_data |>
   slice_sample(n = 1) |>
   ungroup()
 
-cat(sprintf("\n=== Spatial thinning: %d → %d pixels (%.0f%%, ≥4km spacing) ===\n",
-            nrow(val_data), nrow(val_thin),
-            100 * nrow(val_thin) / nrow(val_data)))
+cat(sprintf("\n=== Spatial thinning: %d → %d pixels (%.0f%%, >=4km spacing) ===\n",
+            nrow(val_data), nrow(val_thin), 100 * nrow(val_thin) / nrow(val_data)))
 
-aov_fit  <- aov(Actual_Drop_15_16 ~ cluster, data = val_thin)
+aov_fit <- aov(Actual_Drop_15_16 ~ cluster, data = val_thin)
 
 cat("=== One-way ANOVA (spatially thinned): Actual_Drop_15_16 ~ cluster ===\n")
 print(summary(aov_fit))
@@ -300,33 +290,42 @@ tukey_result <- TukeyHSD(aov_fit)
 cat("\n=== Tukey HSD pairwise comparisons ===\n")
 print(tukey_result)
 
-# Mean value label per cluster (printed inside each box)
 mean_df <- val_data |>
   group_by(cluster) |>
-  summarise(mean_drop = mean(Actual_Drop_15_16, na.rm = TRUE), .groups = "drop") |>
-  mutate(label = sprintf("mean = %.3f", mean_drop))
+  summarise(mean_val = mean(Actual_Drop_15_16, na.rm = TRUE), .groups = "drop") |>
+  mutate(label = sprintf("mean = %.3f", mean_val))
 
 # --------------------------------------------------------------------------
 # 9. Validation boxplot with mean labels + significance brackets
 # --------------------------------------------------------------------------
+format_p <- function(p) if (p < 0.001) "p < 0.001" else sprintf("p = %.3f", p)
+
+tk <- tukey_result$cluster
+# geom_signif comparisons order (1,2)/(2,3)/(1,3) vs. TukeyHSD row order (2-1)/(3-1)/(3-2)
+sig_labels <- c(format_p(tk["2-1", "p adj"]),
+                 format_p(tk["3-2", "p adj"]),
+                 format_p(tk["3-1", "p adj"]))
+overall_p <- summary(aov_fit)[[1]][["Pr(>F)"]][1]
+
 p_val <- ggplot(val_data, aes(x = cluster, y = Actual_Drop_15_16, fill = cluster)) +
   geom_boxplot(outlier.size = 0.2, outlier.alpha = 0.3, width = 0.5) +
-  geom_text(data = mean_df, aes(x = cluster, y = mean_drop, label = label),
+  geom_text(data = mean_df, aes(x = cluster, y = mean_val, label = label),
             inherit.aes = FALSE, size = 3.2, vjust = -0.6, fontface = "italic") +
   geom_signif(
     comparisons  = list(c("1", "2"), c("2", "3"), c("1", "3")),
-    annotations  = c("p < 0.001", "p < 0.001", "p < 0.001"),
+    annotations  = sig_labels,
     step_increase = 0.12,
     tip_length   = 0.01,
     textsize     = 3.2
   ) +
   scale_fill_manual(values = cluster_cols, guide = "none") +
   labs(
-    title    = "Post-hoc Validation: Actual NDVI Drop 2015–2016 by Cluster",
-    subtitle = sprintf("ANOVA F = %.0f, p < 0.001 (spatially thinned n = %s, ≥4km spacing) — Tukey HSD shown",
+    title    = "Actual NDVI Drop 2015-2016 by Cluster",
+    subtitle = sprintf("ANOVA F = %.1f, %s (n = %s, >=4km spacing) - Tukey HSD shown",
                        summary(aov_fit)[[1]][["F value"]][1],
+                       format_p(overall_p),
                        format(nrow(val_thin), big.mark = ",")),
-    x = "Cluster", y = "Actual Drop (baseline mean − 2015–2016 min)"
+    x = "Cluster", y = "Actual Drop (baseline mean - 2015-2016 min)"
   ) +
   theme_bw() +
   theme(
@@ -339,37 +338,35 @@ ggsave("pixel_approach/charts/cluster_validation.pdf",
 cat("✓ Saved: pixel_approach/charts/cluster_validation.pdf\n")
 
 # --------------------------------------------------------------------------
-# 10. Binary classification validation — confusion matrix + ROC-AUC
+# 10. Binary classification validation - confusion matrix + ROC-AUC on
+#     Actual_Drop_15_16 ground truth
 # --------------------------------------------------------------------------
-# Reload from saved CSV so Actual_Drop reflects the latest 04_actual_drop.R run
 clf_data <- read_csv("pixel_approach/data/processed/pixel_clusters.csv",
                      show_col_types = FALSE) |>
   filter(!is.na(Actual_Drop_15_16)) |>
   mutate(
-    # Ground truth: top 20% of actual drop = "severe collapse"
-    actual_severe    = Actual_Drop_15_16 >= quantile(Actual_Drop_15_16, 0.80, na.rm = TRUE),
+    # Ground truth: top 20% of Actual_Drop = "severe collapse"
+    severe    = Actual_Drop_15_16 >= quantile(Actual_Drop_15_16, 0.80, na.rm = TRUE),
     # Prediction: cluster K (full CSD) = "predicted severe"
-    predicted_severe = as.integer(cluster) == K,
-    # Continuous score for ROC: composite stress (higher = more stressed)
-    stress_score     = tau_r1 + tau_var - tau_skew
+    predicted = as.integer(cluster) == K
   )
 
-TP <- sum( clf_data$actual_severe &  clf_data$predicted_severe)
-FP <- sum(!clf_data$actual_severe &  clf_data$predicted_severe)
-TN <- sum(!clf_data$actual_severe & !clf_data$predicted_severe)
-FN <- sum( clf_data$actual_severe & !clf_data$predicted_severe)
+TP <- sum( clf_data$severe &  clf_data$predicted)
+FP <- sum(!clf_data$severe &  clf_data$predicted)
+TN <- sum(!clf_data$severe & !clf_data$predicted)
+FN <- sum( clf_data$severe & !clf_data$predicted)
 
 sensitivity <- TP / (TP + FN)
 precision   <- TP / (TP + FP)
 specificity <- TN / (TN + FP)
 fpr_binary  <- FP / (FP + TN)
 accuracy    <- (TP + TN) / (TP + FP + TN + FN)
+lift        <- precision / 0.20   # baseline rate = 20% by definition
 
-cat("\n=== Binary classification: Cluster 3 vs top-20% Actual_Drop ===\n")
-cat(sprintf("  Threshold: top %.0f%% of Actual_Drop (≥ %.4f)\n",
-            20, quantile(clf_data$Actual_Drop_15_16, 0.80, na.rm = TRUE)))
+cat(sprintf("\n=== Binary classification: Cluster %d vs top-20%% Actual_Drop ===\n", K))
+cat(sprintf("  Threshold: top 20%% of Actual_Drop (>= %.4f)\n",
+            quantile(clf_data$Actual_Drop_15_16, 0.80, na.rm = TRUE)))
 cat(sprintf("  TP=%d  FP=%d  TN=%d  FN=%d\n", TP, FP, TN, FN))
-lift <- precision / 0.20   # baseline rate = 20% by definition
 cat(sprintf("  Sensitivity (Recall): %.3f\n", sensitivity))
 cat(sprintf("  Precision:            %.3f\n", precision))
 cat(sprintf("  Specificity:          %.3f\n", specificity))
@@ -379,26 +376,26 @@ cat(sprintf("  Lift factor:          %.2fx  (vs 1.00x random)\n", lift))
 
 # ROC-AUC via trapezoidal rule on composite stress score
 roc_df <- clf_data |>
-  select(stress_score, actual_severe) |>
+  mutate(stress_score = tau_r1 + tau_var) |>
+  select(stress_score, severe) |>
   arrange(desc(stress_score)) |>
   mutate(
-    tpr = cumsum(actual_severe)  / sum(actual_severe),
-    fpr = cumsum(!actual_severe) / sum(!actual_severe)
+    tpr = cumsum(severe)  / sum(severe),
+    fpr = cumsum(!severe) / sum(!severe)
   )
 
 auc <- sum(diff(roc_df$fpr) * (head(roc_df$tpr, -1) + tail(roc_df$tpr, -1))) / 2
 cat(sprintf("  ROC-AUC:              %.3f\n", auc))
 
-# ROC curve plot
 p_roc <- ggplot(roc_df, aes(x = fpr, y = tpr)) +
   geom_line(linewidth = 0.8, color = "#D73027") +
   geom_abline(linetype = "dashed", color = "grey50") +
-  annotate("text", x = 0.6, y = 0.2,
+  annotate("text", x = 0.55, y = 0.15,
            label = sprintf("AUC = %.3f", auc),
-           size = 4.5, fontface = "bold") +
+           size = 4, fontface = "bold", color = "#D73027", hjust = 0) +
   labs(
     title    = "ROC Curve: CSD Stress Score vs Severe Canopy Collapse",
-    subtitle = "Ground truth = top 20% Actual_Drop; predictor = τ_r1 + τ_var − τ_skew",
+    subtitle = "Ground truth = top 20% Actual_Drop; predictor = tau_r1 + tau_var",
     x = "False Positive Rate", y = "True Positive Rate (Sensitivity)"
   ) +
   theme_bw() +
@@ -406,7 +403,7 @@ p_roc <- ggplot(roc_df, aes(x = fpr, y = tpr)) +
         plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))
 
 ggsave("pixel_approach/charts/cluster_roc.pdf",
-       plot = p_roc, width = 6, height = 5, dpi = 150)
+       plot = p_roc, width = 6, height = 5.5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/cluster_roc.pdf\n")
 
 # --------------------------------------------------------------------------
@@ -420,8 +417,8 @@ d |>
     tau_r1_mean   = round(mean(tau_r1),   3),
     tau_var_mean  = round(mean(tau_var),  3),
     tau_skew_mean = round(mean(tau_skew), 3),
-    drop_mean     = round(mean(Actual_Drop_15_16,   na.rm = TRUE), 3),
-    drop_median   = round(median(Actual_Drop_15_16, na.rm = TRUE), 3),
+    actual_mean   = round(mean(Actual_Drop_15_16,   na.rm = TRUE), 3),
+    actual_median = round(median(Actual_Drop_15_16, na.rm = TRUE), 3),
     .groups = "drop"
   ) |>
   arrange(as.integer(cluster)) |>

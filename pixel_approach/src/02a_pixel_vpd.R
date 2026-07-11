@@ -6,11 +6,12 @@ library(terra)
 # Crop to Sierra Nevada extent before extraction for speed.
 #
 # Output:
-#   pixel_approach/data/processed/vpd_matrix.rds — 251971 × 179 months
+#   pixel_approach/data/processed/vpd_matrix.rds — 251971 × 203 months
 # Row order matches pixel_metadata.csv (indexed by pixel_id).
-# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2014.
+# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2016 (extended from Dec 2014 to
+# cover the 2015-2016 validation window).
 
-target_dates <- seq(as.Date("2000-02-01"), as.Date("2014-12-01"), by = "month")
+target_dates <- seq(as.Date("2000-02-01"), as.Date("2016-12-01"), by = "month")
 target_ym    <- format(target_dates, "%Y%m")
 
 cat("Loading pixel metadata...\n")
@@ -35,7 +36,7 @@ vpd_rast <- crop(vpd_rast, ext(pts) + 0.5)
 cat("✓ Cropped to Sierra Nevada extent\n")
 
 cat("Extracting VPD at pixel centroids (bilinear interpolation)...\n")
-vpd_vals <- extract(vpd_rast, pts, method = "bilinear", ID = FALSE)
+vpd_vals <- terra::extract(vpd_rast, pts, method = "bilinear", ID = FALSE)
 colnames(vpd_vals) <- format(target_dates[target_ym %in% vpd_ym[keep_v]], "%Y-%m-%d")
 
 vpd_mat <- as.matrix(vpd_vals)

@@ -21,6 +21,11 @@ install.packages(c(
   "forecast",      # ARIMA, forecasting
   "zoo",           # rolling windows, time-series
 
+  # Parallelization
+  "future",        # parallel backend (plan())
+  "future.apply",  # parallel lapply (future_lapply)
+  "progressr",     # progress bars across future workers
+
   # Regression diagnostics
   "car",           # VIF (variance inflation factor) for multicollinearity checks
   "patchwork",     # combine multiple ggplots into one figure

@@ -7,11 +7,12 @@ library(terra)
 # extent before extraction for speed.
 #
 # Output:
-#   pixel_approach/data/processed/ppt_matrix.rds — 251971 × 179 months
+#   pixel_approach/data/processed/ppt_matrix.rds — 251971 × 203 months
 # Row order matches pixel_metadata.csv (indexed by pixel_id).
-# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2014.
+# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2016 (extended from Dec 2014 to
+# cover the 2015-2016 validation window).
 
-target_dates <- seq(as.Date("2000-02-01"), as.Date("2014-12-01"), by = "month")
+target_dates <- seq(as.Date("2000-02-01"), as.Date("2016-12-01"), by = "month")
 target_ym    <- format(target_dates, "%Y%m")
 
 cat("Loading pixel metadata...\n")
@@ -62,7 +63,7 @@ ppt_rast <- crop(ppt_rast, ext(pts_ppt) + 0.5)
 cat("✓ Cropped to Sierra Nevada extent\n")
 
 cat("Extracting PPT at pixel centroids (bilinear interpolation)...\n")
-ppt_vals <- extract(ppt_rast, pts_ppt, method = "bilinear", ID = FALSE)
+ppt_vals <- terra::extract(ppt_rast, pts_ppt, method = "bilinear", ID = FALSE)
 colnames(ppt_vals) <- format(ppt_dates, "%Y-%m-%d")
 
 ppt_mat <- as.matrix(ppt_vals)
