@@ -33,11 +33,11 @@
 
 ## 1. Request Parameters  
 
-    Name: Sierra Nevada 2  
+    Name: Sierra Nevada ndvi  
 
-    Date Completed: 2026-06-26T01:59:50.553851  
+    Date Completed: 2026-07-12T00:48:59.191384  
 
-    ID: a67cb785-bb1e-406e-a63b-06e52396ad0f  
+    ID: 2d1e723d-3d43-4bb9-843b-bee1b2299b55  
 
     Details:  
 
@@ -57,15 +57,15 @@
     
         Output Format:                netcdf4  
 
-    Version: This request was processed by AppEEARS version 3.121  
+    Version: This request was processed by AppEEARS version 3.122  
 
 ## 2. Request File Listing  
 
 **Supporting Files:**  
 
-- Sierra-Nevada-2-MOD13A1-061-metadata.xml
-- Sierra-Nevada-2-granule-list.txt
-- Sierra-Nevada-2-request.json
+- Sierra-Nevada-ndvi-MOD13A1-061-metadata.xml
+- Sierra-Nevada-ndvi-granule-list.txt
+- Sierra-Nevada-ndvi-request.json
 - MOD13A1-061-500m-16-days-VI-Quality-lookup.csv
 - MOD13A1-061-500m-16-days-VI-Quality-Statistics-QA.csv
 - MOD13A1-061-Statistics.csv
@@ -73,7 +73,7 @@
 **Data Files:**  
 
 Number of Extracted Data Files: 1  
-Total Size of Extracted Data Files: 971.92 MB  
+Total Size of Extracted Data Files: 297.88 MB  
 
 ## 3. Area Sample Extraction Process  
 
@@ -467,11 +467,11 @@ AppEEARS sample request outputs are available to download for a limited amount o
 
 ## 9. Data Product Citations  
 
-- Didan, K. (2021). MODIS/Terra Vegetation Indices 16-Day L3 Global 500m SIN Grid V061. NASA Land Processes Distributed Active Archive Center. https://doi.org/10.5067/MODIS/MOD13A1.061. Accessed June 26, 2026.
+- Didan, K. (2021). MODIS/Terra Vegetation Indices 16-Day L3 Global 500m SIN Grid V061. NASA Land Processes Distributed Active Archive Center. https://doi.org/10.5067/MODIS/MOD13A1.061. Accessed July 12, 2026.
 
 ## 10. Software Citation  
 
-AppEEARS Team. (2026). Application for Extracting and Exploring Analysis Ready Samples (AppEEARS). Ver. 3.121. NASA EOSDIS Land Processes Distributed Active Archive Center (LP DAAC), USGS/Earth Resources Observation and Science (EROS) Center, Sioux Falls, South Dakota, USA. Accessed June 26, 2026. https://appeears.earthdatacloud.nasa.gov
+AppEEARS Team. (2026). Application for Extracting and Exploring Analysis Ready Samples (AppEEARS). Ver. 3.122. NASA EOSDIS Land Processes Distributed Active Archive Center (LP DAAC), USGS/Earth Resources Observation and Science (EROS) Center, Sioux Falls, South Dakota, USA. Accessed July 12, 2026. https://appeears.earthdatacloud.nasa.gov
 
 ## 11. Feedback  
 

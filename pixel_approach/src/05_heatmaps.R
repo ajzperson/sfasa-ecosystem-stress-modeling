@@ -71,21 +71,21 @@ save_combined <- function(p_ndvi, p_ndwi, title, out_file, collect_guides = TRUE
 save_combined(
   plot_heatmap(d_ndvi, "tau_r1", "NDVI", "#2166AC", "#D73027", limits = c(-1, 1)),
   plot_heatmap(d_ndwi, "tau_r1", "NDWI", "#2166AC", "#D73027", limits = c(-1, 1)),
-  title    = "Kendall's tau - Lag-1 Autocorrelation (r1) Trend",
+  title    = "Kendall's tau - Lag-1 Autocorrelation (r1)",
   out_file = "pixel_approach/charts/heatmap_tau_r1.pdf"
 )
 
 save_combined(
   plot_heatmap(d_ndvi, "tau_var", "NDVI", "#2166AC", "#D73027", limits = c(-1, 1)),
   plot_heatmap(d_ndwi, "tau_var", "NDWI", "#2166AC", "#D73027", limits = c(-1, 1)),
-  title    = "Kendall's tau - Variance Trend",
+  title    = "Kendall's tau - Variance",
   out_file = "pixel_approach/charts/heatmap_tau_var.pdf"
 )
 
 save_combined(
   plot_heatmap(d_ndvi, "tau_skew", "NDVI", "#D73027", "#2166AC", limits = c(-1, 1)),
   plot_heatmap(d_ndwi, "tau_skew", "NDWI", "#D73027", "#2166AC", limits = c(-1, 1)),
-  title    = "Kendall's tau - Skewness Trend\n(negative = more stressed; red = worse)",
+  title    = "Kendall's tau - Skewness\n(negative = more stressed; red = worse)",
   out_file = "pixel_approach/charts/heatmap_tau_skew.pdf"
 )
 

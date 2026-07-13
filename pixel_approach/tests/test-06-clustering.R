@@ -12,7 +12,7 @@ library(cluster)
 # synthetic sn_boundary/cluster_cols/clust_labels instead.
 exprs    <- parse("../src/06_clustering.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
-skip_lines <- grepl("st_read\\(|^results <-|^n_idx|^p_sweep|^ggsave|^p_map|^p_scatter|^p_ts|^val_results|^p_val|^roc_results|^roc_combined|^roc_colors|^auc_label|^p_roc|^for \\(idx in INDICES\\)", src_text)
+skip_lines <- grepl("st_read\\(|dir\\.create\\(|^results <-|^n_idx|^p_sweep|^ggsave|^p_map|^p_scatter|^p_ts|^val_results|^p_val|^roc_results|^roc_combined|^roc_colors|^auc_label|^p_roc|^for \\(idx in INDICES\\)", src_text)
 stop_at <- which(grepl("^for \\(idx in INDICES\\)", src_text))[1]
 stopifnot(!is.na(stop_at))
 for (i in seq_len(stop_at - 1)) {

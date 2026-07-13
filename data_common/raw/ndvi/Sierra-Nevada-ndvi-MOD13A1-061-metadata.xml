@@ -16,7 +16,7 @@
 
   <!-- FILE IDENTIFIER -->
   <gmd:fileIdentifier>
-    <gco:CharacterString>Sierra-Nevada-2-MOD13A1-061-metadata.xml</gco:CharacterString>
+    <gco:CharacterString>Sierra-Nevada-ndvi-MOD13A1-061-metadata.xml</gco:CharacterString>
   </gmd:fileIdentifier>
 
   <!-- METADATA AND RESOURCE LANGUAGE -->
@@ -102,7 +102,7 @@
 
   <!-- METADATA DATE -->
   <gmd:dateStamp>
-    <gco:Date>2026-06-26</gco:Date>
+    <gco:Date>2026-07-12</gco:Date>
   </gmd:dateStamp>
 
   <!-- METADATA STANDARD NAME -->
@@ -199,7 +199,7 @@
           <gmd:date>
             <gmd:CI_Date>
               <gmd:date>
-                <gco:Date>2026-06-26</gco:Date>
+                <gco:Date>2026-07-12</gco:Date>
               </gmd:date>
               <gmd:dateType>
                 <gmd:CI_DateTypeCode
@@ -272,10 +272,10 @@
         </gmd:EX_Extent>
       </gmd:extent>
       <gmd:supplementalInformation>
-        <gco:CharacterString>Didan, K. (2021). MODIS/Terra Vegetation Indices 16-Day L3 Global 500m SIN Grid V061. NASA Land Processes Distributed Active Archive Center. https://doi.org/10.5067/MODIS/MOD13A1.061. Accessed June 26, 2026.</gco:CharacterString>
+        <gco:CharacterString>Didan, K. (2021). MODIS/Terra Vegetation Indices 16-Day L3 Global 500m SIN Grid V061. NASA Land Processes Distributed Active Archive Center. https://doi.org/10.5067/MODIS/MOD13A1.061. Accessed July 12, 2026.</gco:CharacterString>
       </gmd:supplementalInformation>
       <gmd:supplementalInformation>
-        <gco:CharacterString>AppEEARS Team. (2026). Application for Extracting and Exploring Analysis Ready Samples (AppEEARS). Ver. 3.121. NASA EOSDIS Land Processes Distributed Active Archive Center (LP DAAC), USGS/Earth Resources Observation and Science (EROS) Center, Sioux Falls, South Dakota, USA. Accessed June 26, 2026. https://appeears.earthdatacloud.nasa.gov</gco:CharacterString>
+        <gco:CharacterString>AppEEARS Team. (2026). Application for Extracting and Exploring Analysis Ready Samples (AppEEARS). Ver. 3.122. NASA EOSDIS Land Processes Distributed Active Archive Center (LP DAAC), USGS/Earth Resources Observation and Science (EROS) Center, Sioux Falls, South Dakota, USA. Accessed July 12, 2026. https://appeears.earthdatacloud.nasa.gov</gco:CharacterString>
       </gmd:supplementalInformation>
     </gmd:MD_DataIdentification>
   </gmd:identificationInfo>
@@ -299,16 +299,16 @@
               <gmd:geographicElement>
                 <gmd:EX_GeographicBoundingBox>
                   <gmd:westBoundLongitude>
-                    <gco:Decimal>-122.6</gco:Decimal>
+                    <gco:Decimal>-121.63544872254893</gco:Decimal>
                   </gmd:westBoundLongitude>
                   <gmd:eastBoundLongitude>
-                    <gco:Decimal>-115.6</gco:Decimal>
+                    <gco:Decimal>-117.87015436162494</gco:Decimal>
                   </gmd:eastBoundLongitude>
                   <gmd:southBoundLatitude>
-                    <gco:Decimal>34.7</gco:Decimal>
+                    <gco:Decimal>34.81586613314214</gco:Decimal>
                   </gmd:southBoundLatitude>
                   <gmd:northBoundLatitude>
-                    <gco:Decimal>42.1</gco:Decimal>
+                    <gco:Decimal>40.42355060552098</gco:Decimal>
                   </gmd:northBoundLatitude>
                 </gmd:EX_GeographicBoundingBox>
               </gmd:geographicElement>
@@ -367,7 +367,7 @@
                       <gmd:date>
                         <gmd:CI_Date>
                           <gmd:date>
-                            <gco:Date>2026-06-26</gco:Date>
+                            <gco:Date>2026-07-12</gco:Date>
                           </gmd:date>
                           <gmd:dateType>
                             <gmd:CI_DateTypeCode
@@ -378,7 +378,7 @@
                         </gmd:CI_Date>
                       </gmd:date>
                       <gmd:edition>
-                        <gco:CharacterString>3.121</gco:CharacterString>
+                        <gco:CharacterString>3.122</gco:CharacterString>
                       </gmd:edition>
                     </gmd:CI_Citation>
                   </gmi:softwareReference>
@@ -477,12 +477,12 @@
               <gmd:sourceCitation>
                 <gmd:CI_Citation>
                   <gmd:title>
-                    <gmx:FileName src="Sierra-Nevada-2-granule-list.txt">Text file with data pool URLs for all source granules used in the extraction</gmx:FileName>
+                    <gmx:FileName src="Sierra-Nevada-ndvi-granule-list.txt">Text file with data pool URLs for all source granules used in the extraction</gmx:FileName>
                   </gmd:title>
                   <gmd:date>
                     <gmd:CI_Date>
                       <gmd:date>
-                        <gco:Date>2026-06-26</gco:Date>
+                        <gco:Date>2026-07-12</gco:Date>
                       </gmd:date>
                       <gmd:dateType>
                         <gmd:CI_DateTypeCode

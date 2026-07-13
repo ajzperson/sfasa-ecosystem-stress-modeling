@@ -1,5 +1,6 @@
 # Knowledge Base
 
+NDVI is used as the running example throughout (it's the more intuitive signal to reason about), but the same math applies unchanged to NDWI or any other similar index — wherever this doc says "NDVI," read it as "NDVI or NDWI."
 
 ## STL Decomposition
 
@@ -48,7 +49,7 @@ Controls how the seasonal component is estimated:
 | Setting | Behavior |
 |---------|----------|
 | `"periodic"` | All years get equal weight. One fixed seasonal shape learned from all years. |
-| A number (e.g., `7`) | Only nearby years contribute. Seasonal pattern can slowly evolve over time. |
+| A number (e.g., `3`) | Only nearby years contribute. Seasonal pattern can slowly evolve over time. |
 
 ---
 
@@ -61,17 +62,25 @@ Because `s.window = "periodic"`, the seasonal component is the **mean of each mo
 
 This gives 12 fixed values. STL then stamps the same pattern across all months in the series — every year looks identical in this panel. The wave never changes shape because `"periodic"` forces one fixed seasonal baseline for the entire 2000–2014 period.
 
-Example — "typical July":
+Illustrative example — "typical July" over a 2000–2014 window (values here are made up for the math, not real NDVI):
 
-```
-Jul 2000: 0.xxx
-Jul 2001: 0.xxx
-Jul 2002: 0.xxx
-...
-Jul 2014: 0.xxx
+| Year | 2000 | 2001 | 2002 | 2003 | 2004 | 2005 | 2006 | 2007 | 2008 | 2009 | 2010 | 2011 | 2012 | 2013 | 2014 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| July value | 0.60 | 0.62 | 0.61 | 0.63 | 0.65 | 0.64 | 0.63 | 0.62 | 0.60 | 0.58 | 0.59 | 0.57 | 0.55 | 0.53 | 0.50 |
 
-Mean of all N Julies = 0.xxx  ← S_t for every July in the chart
-```
+$$\text{Mean of all 15 Julies} = 0.595 \quad \leftarrow S_t \text{ for } \textbf{every} \text{ July in the chart, 2000 through 2014 alike}$$
+
+---
+
+##### The math behind a numeric `s.window`
+
+With a number instead of `"periodic"`, the seasonal estimate for each year is built from a **local** loess smooth of that year's subseries (e.g., just the Julys) instead of a plain mean over all years — so nearby years count more than distant ones, using the same tricubic weighting idea as the trend panel below.
+
+That local smooth is not the final answer, though: STL then runs it through an additional **low-pass filter** (two moving averages the length of one full year, then a length-3 moving average, then one more loess pass) and subtracts that filtered result back off, before the seasonal component is finalized. This extra step exists to strip out any long-term trend that leaked into the seasonal estimate — but it also means the *net* influence of a neighboring year on the final $S_t$ is not simply the tricubic weight from the first step alone.
+
+**Empirically confirmed** (by perturbing one real year's value and measuring the actual change in STL's output): for a short window like `s.window = 3`, that low-pass step cancels out nearly all of the neighboring-year influence — the net effect of a 1-year-away neighbor on the final seasonal estimate came out under 1%, not the ~67% the local tricubic step alone would suggest. So: a numeric `s.window` does let the seasonal baseline drift across years (unlike `"periodic"`'s single fixed value), but the exact amount of that drift depends on the full multi-step filter, not a single hand-computable weighted average — there isn't a simple worked example for the exact number here the way there is for the trend panel below.
+
+(`s.window` should be odd: an odd number splits evenly into "N years before, itself, N years after" — e.g. 3 = 1 before + self + 1 after. An even number can't center on the target year this way. R's `?stl` docs recommend `s.window` be odd and at least 7, per Cleveland et al.'s original STL paper — not a hard rule R enforces, just what they found reliable. Paper: [Cleveland, R.B., Cleveland, W.S., McRae, J.E., Terpenning, I. (1990). STL: A Seasonal-Trend Decomposition Procedure Based on Loess. *Journal of Official Statistics*, 6(1), 3-73.](https://www.scb.se/contentassets/ca21efb41fee47d293bbee5bf7be7fb3/stl-a-seasonal-trend-decomposition-procedure-based-on-loess.pdf))
 
 ---
 
@@ -104,13 +113,15 @@ Here is the full calculation with 3 simple points centered at $t_0 = 0$:
 
 | $t_i$ | $y_i$ | $w_i$ |
 |--------|--------|--------|
-| $-1$ | $2$ | $0.5$ |
+| $-1$ | $2$ | $0.67$ |
 | $0$ | $4$ | $1.0$ |
-| $+1$ | $3$ | $0.5$ |
+| $+1$ | $3$ | $0.67$ |
+
+(These are the real tricubic weights for a neighbor at half the window's half-width — same 0.67 value used in the `s.window` example above.)
 
 **Design matrix, weight matrix, and response vector:**
 
-$$X = \begin{bmatrix} 1 & -1 \\ 1 & 0 \\ 1 & 1 \end{bmatrix} \qquad W = \begin{bmatrix} 0.5 & 0 & 0 \\ 0 & 1.0 & 0 \\ 0 & 0 & 0.5 \end{bmatrix} \qquad y = \begin{bmatrix} 2 \\ 4 \\ 3 \end{bmatrix}$$
+$$X = \begin{bmatrix} 1 & -1 \\ 1 & 0 \\ 1 & 1 \end{bmatrix} \qquad W = \begin{bmatrix} 0.67 & 0 & 0 \\ 0 & 1.0 & 0 \\ 0 & 0 & 0.67 \end{bmatrix} \qquad y = \begin{bmatrix} 2 \\ 4 \\ 3 \end{bmatrix}$$
 
 The first column of $X$ is all ones (for the intercept). The second column is the centered time index $t_i - t_0$.
 
@@ -118,29 +129,29 @@ The first column of $X$ is all ones (for the intercept). The second column is th
 
 $$X^TWX = \begin{bmatrix} \sum w_i & \sum t_i w_i \\ \sum t_i w_i & \sum t_i^2 w_i \end{bmatrix}$$
 
-$$= \begin{bmatrix} 0.5+1.0+0.5 & (-1)(0.5)+(0)(1.0)+(1)(0.5) \\ (-1)(0.5)+(0)(1.0)+(1)(0.5) & (-1)^2(0.5)+(0)^2(1.0)+(1)^2(0.5) \end{bmatrix} = \begin{bmatrix} 2.0 & 0 \\ 0 & 1.0 \end{bmatrix}$$
+$$= \begin{bmatrix} 0.67+1.0+0.67 & (-1)(0.67)+(0)(1.0)+(1)(0.67) \\ (-1)(0.67)+(0)(1.0)+(1)(0.67) & (-1)^2(0.67)+(0)^2(1.0)+(1)^2(0.67) \end{bmatrix} = \begin{bmatrix} 2.34 & 0 \\ 0 & 1.34 \end{bmatrix}$$
 
 **Compute $X^TWy$:**
 
-$$X^TWy = \begin{bmatrix} \sum w_i y_i \\ \sum t_i w_i y_i \end{bmatrix} = \begin{bmatrix} (0.5)(2)+(1.0)(4)+(0.5)(3) \\ (-1)(0.5)(2)+(0)(1.0)(4)+(1)(0.5)(3) \end{bmatrix} = \begin{bmatrix} 6.5 \\ 0.5 \end{bmatrix}$$
+$$X^TWy = \begin{bmatrix} \sum w_i y_i \\ \sum t_i w_i y_i \end{bmatrix} = \begin{bmatrix} (0.67)(2)+(1.0)(4)+(0.67)(3) \\ (-1)(0.67)(2)+(0)(1.0)(4)+(1)(0.67)(3) \end{bmatrix} = \begin{bmatrix} 7.35 \\ 0.67 \end{bmatrix}$$
 
 **Invert $X^TWX$:**
 
 Because $X^TWX$ is diagonal, the inverse just flips each diagonal value:
 
-$$(X^TWX)^{-1} = \begin{bmatrix} 1/2.0 & 0 \\ 0 & 1/1.0 \end{bmatrix} = \begin{bmatrix} 0.5 & 0 \\ 0 & 1.0 \end{bmatrix}$$
+$$(X^TWX)^{-1} = \begin{bmatrix} 1/2.34 & 0 \\ 0 & 1/1.34 \end{bmatrix} = \begin{bmatrix} 0.4274 & 0 \\ 0 & 0.7463 \end{bmatrix}$$
 
 **Solve for $\hat{\beta}$:**
 
-$$\hat{\beta} = (X^TWX)^{-1} X^TWy = \begin{bmatrix} 0.5 & 0 \\ 0 & 1.0 \end{bmatrix} \begin{bmatrix} 6.5 \\ 0.5 \end{bmatrix} = \begin{bmatrix} 3.25 \\ 0.50 \end{bmatrix}$$
+$$\hat{\beta} = (X^TWX)^{-1} X^TWy = \begin{bmatrix} 0.4274 & 0 \\ 0 & 0.7463 \end{bmatrix} \begin{bmatrix} 7.35 \\ 0.67 \end{bmatrix} = \begin{bmatrix} 3.14 \\ 0.50 \end{bmatrix}$$
 
 **The trend value at $t_0$:**
 
-$$T_{t_0} = \hat{\beta}_0 = 3.25$$
+$$T_{t_0} = \hat{\beta}_0 = 3.14$$
 
 The slope $\hat{\beta}_1 = 0.50$ describes the local direction but is discarded. Only the intercept is kept as the trend value.
 
-Note: the result (3.25) is pulled toward the center point (4) more than a plain average $\frac{2+4+3}{3} = 3.0$ — because the center weight $w = 1.0$ is double the edge weights $w = 0.5$.
+Note: the result (3.14) is pulled toward the center point (4) more than a plain average $\frac{2+4+3}{3} = 3.0$ — because the center weight $w = 1.0$ is higher than the edge weights $w = 0.67$.
 
 ---
 
@@ -152,13 +163,13 @@ When the window is symmetric around $t_0$ (e.g., $-1, 0, +1$), the time points b
 
 $$\hat{\beta}_0 = \frac{\sum w_i y_i}{\sum w_i}$$
 
-$$= \frac{(0.5 \times 2) + (1.0 \times 4) + (0.5 \times 3)}{0.5 + 1.0 + 0.5} = \frac{6.5}{2.0} = 3.25$$
+$$= \frac{(0.67 \times 2) + (1.0 \times 4) + (0.67 \times 3)}{0.67 + 1.0 + 0.67} = \frac{7.35}{2.34} = 3.14$$
 
 **The slope** is a weighted ratio of how the data changes over time:
 
 $$\hat{\beta}_1 = \frac{\sum w_i t_i y_i}{\sum w_i t_i^2}$$
 
-$$= \frac{(-1 \times 0.5 \times 2) + (0 \times 1.0 \times 4) + (1 \times 0.5 \times 3)}{(1^2 \times 0.5) + (0^2 \times 1.0) + (1^2 \times 0.5)} = \frac{0.5}{1.0} = 0.5$$
+$$= \frac{(-1 \times 0.67 \times 2) + (0 \times 1.0 \times 4) + (1 \times 0.67 \times 3)}{(1^2 \times 0.67) + (0^2 \times 1.0) + (1^2 \times 0.67)} = \frac{0.67}{1.34} = 0.5$$
 
 The slope is computed but discarded — only $\hat{\beta}_0$ is kept as $T_{t_0}$.
 
@@ -179,9 +190,11 @@ Where $d$ is the normalized distance from the target year (actual distance ÷ wi
 - $|d| = 1.0$ (at window edge): weight = 0 — dropped completely
 - $|d| > 1$ (outside window): weight = 0
 
+**Empirically confirmed for the trend panel** (Panel 3, $t.window=19$): perturbing one real month's value and measuring the actual change in `stl()`'s trend output reproduces this same decaying shape — full effect at the target month, fading to roughly zero by 9 months out. (For the seasonal panel with a numeric `s.window`, this weight is only the *first* of several steps — see the caveat under "The math behind a numeric `s.window`" above.)
+
 ---
 
-**Reference:** Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. (1990). STL: A seasonal-trend decomposition procedure based on loess. *Journal of Official Statistics*, 6(1), 3–73.
+**Reference:** [Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. (1990). STL: A seasonal-trend decomposition procedure based on loess. *Journal of Official Statistics*, 6(1), 3–73.](https://www.scb.se/contentassets/ca21efb41fee47d293bbee5bf7be7fb3/stl-a-seasonal-trend-decomposition-procedure-based-on-loess.pdf)
 
 ---
 
@@ -489,4 +502,199 @@ Strong upward trend — most later observations are higher.
 cor.test(as.numeric(date), r1, method = "kendall")
 ```
 `as.numeric(date)` converts dates to days since 1970-01-01. The p-value tests whether $\tau$ is significantly different from 0.
+
+---
+
+## One-Way ANOVA
+
+**Question:** do three or more groups have genuinely different means, or could the differences we see just be random noise?
+
+ANOVA (Analysis of Variance) compares variation **between** groups to variation **within** groups:
+
+$$F = \frac{\text{between-group variance}}{\text{within-group variance}} = \frac{MS_{between}}{MS_{within}}$$
+
+($MS$ = Mean Square — a sum of squares divided by its degrees of freedom, i.e. an average squared deviation.)
+
+If the groups really differ, the average distance between group means should be large relative to how spread out each group is internally. If the "groups" are really just random subsets of the same population, between-group and within-group variance should be about the same size, giving $F \approx 1$.
+
+**Illustrative example** — 3 groups, 3 observations each:
+
+| Group | Values | Mean |
+|---|---|---|
+| 1 | 0.10, 0.12, 0.14 | 0.12 |
+| 2 | 0.14, 0.15, 0.16 | 0.15 |
+| 3 | 0.20, 0.22, 0.24 | 0.22 |
+
+Grand mean = (0.12+0.15+0.22)/3 = 0.163
+
+**Between-group sum of squares** ($SS$ = Sum of Squares; each group's deviation from the grand mean, weighted by group size $n_k=3$):
+
+$$SS_{between} = 3(0.12-0.163)^2 + 3(0.15-0.163)^2 + 3(0.22-0.163)^2 = 0.00563+0.00053+0.00963 = 0.0158$$
+
+Degrees of freedom between = $k-1 = 3-1=2$, so $MS_{between} = 0.0158/2 = 0.0079$
+
+**Within-group sum of squares** (spread inside each group around its own mean — same squared-deviation idea as $SS_{between}$, just measured from each group's *own* mean instead of the grand mean):
+
+Group 1 (values 0.10, 0.12, 0.14; mean 0.12): $(0.10-0.12)^2+(0.12-0.12)^2+(0.14-0.12)^2 = 0.0004+0+0.0004 = 0.0008$
+
+Group 2 (values 0.14, 0.15, 0.16; mean 0.15): $(0.14-0.15)^2+(0.15-0.15)^2+(0.16-0.15)^2 = 0.0001+0+0.0001 = 0.0002$
+
+Group 3 (values 0.20, 0.22, 0.24; mean 0.22): $(0.20-0.22)^2+(0.22-0.22)^2+(0.24-0.22)^2 = 0.0004+0+0.0004 = 0.0008$
+
+$$SS_{within} = \underbrace{0.0008}_{\text{group 1}} + \underbrace{0.0002}_{\text{group 2}} + \underbrace{0.0008}_{\text{group 3}} = 0.0018$$
+
+Degrees of freedom within = $N-k = 9-3=6$ (9 total observations, minus 1 "used up" per group to compute that group's own mean), so $MS_{within} = 0.0018/6 = 0.0003$
+
+**F-statistic:**
+
+$$F = \frac{0.0079}{0.0003} \approx 26.3$$
+
+**Where the p-value comes from:** F follows a known probability distribution when there's truly no group difference (random noise only), shaped by two numbers, $df_{between}$ and $df_{within}$ — here 2 and 6. The p-value is the probability of landing at or beyond the observed F under that distribution.
+
+When $df_{between}=2$ (as it is here — always true for 3 groups, since $k-1=2$), that probability has a clean closed form:
+
+$$p = \left(\frac{df_{within}}{df_{within}+2F}\right)^{df_{within}/2}$$
+
+$$= \left(\frac{6}{6+2(26.33)}\right)^{3} = \left(\frac{6}{58.66}\right)^3 = (0.1023)^3 \approx 0.00107$$
+
+Verified: this hand formula gives 0.001070108, matching both R's `pf(26.33, 2, 6, lower.tail=FALSE)` and `aov()`'s reported p-value exactly.
+
+A large F means the between-group spread dwarfs the within-group spread — strong evidence the groups really differ. The p-value asks: *if there were actually no difference between groups, how likely is an F this large by chance alone?* A small p-value (< 0.05, conventionally) means: reject the "no difference" hypothesis.
+
+| F value | Interpretation |
+|---|---|
+| Close to 1 | Between-group variation ≈ within-group variation — groups probably don't really differ |
+| Much greater than 1 | Between-group variation dwarfs within-group — groups likely genuinely differ |
+
+**In this project:** three groups, tested separately for NDVI and NDWI. Real results: F = 20.4, p < 0.001 (NDVI); F = 62.2, p < 0.001 (NDWI). **Caveat:** ANOVA's F-test only tells you *some* pair of groups differs — not *which* pair. That's what Tukey HSD (below) is for.
+
+---
+
+## Tukey HSD (Honest Significant Difference)
+
+**Question:** ANOVA said *some* pair of groups differs — but which pair(s), specifically?
+
+If you had 3 groups and just ran 3 separate t-tests (1 vs 2, 2 vs 3, 1 vs 3), each test has its own ~5% chance of a false positive. Run enough pairwise tests and you're likely to find "significant" differences purely by chance — the **multiple comparisons problem**. Tukey HSD corrects for this: it controls the **family-wise error rate** (the chance of *any* false positive across *all* pairwise comparisons combined), not just each comparison individually.
+
+For each pair of group means, Tukey HSD computes:
+
+$$q = \frac{|\bar{y}_i - \bar{y}_j|}{SE}, \qquad SE = \sqrt{\frac{MS_{within}}{2}\left(\frac{1}{n_i}+\frac{1}{n_j}\right)}$$
+
+and compares $q$ to the **studentized range distribution** — a distribution calibrated for "the largest gap among $k$ group means," which is inherently wider than a single pairwise comparison's distribution, precisely because there are more chances to see a big gap by luck when comparing many pairs at once.
+
+**Illustrative example** — using the ANOVA numbers above ($MS_{within}=0.0003$, $n_i=n_j=3$ for every group):
+
+$$SE = \sqrt{\frac{0.0003}{2}\left(\frac{1}{3}+\frac{1}{3}\right)} = \sqrt{0.0003 \times \tfrac{1}{3}} = \sqrt{0.0001} = 0.01$$
+
+Group 1 vs Group 3: $|0.12-0.22| = 0.10 \to q = 0.10/0.01 = 10.0$ — compared against the studentized range critical value for $k=3$ groups and $df_{within}=6$ ($q_{crit} \approx 4.34$ at $\alpha=0.05$). Since $10.0 > 4.34$, this pair is significantly different.
+
+Tukey HSD returns, for every pair: the mean difference, a confidence interval, and an adjusted p-value — already corrected for testing multiple pairs, so the p-value can be read directly without further correction.
+
+**In this project:** Tukey HSD applied after the ANOVA above. Real NDVI result:
+
+| Pair | Mean diff | p adj | Meaning |
+|---|---|---|---|
+| 2 − 1 | −0.004 | 0.634 | **Not** significant — "partial" and "no CSD" aren't distinguishable |
+| 3 − 1 | +0.022 | <0.001 | Significant — "full CSD" drops more than "no CSD" |
+| 3 − 2 | +0.026 | <0.001 | Significant — "full CSD" drops more than "partial" |
+
+This is exactly how we found that clusters 1 and 2 aren't really separable on actual outcome, even though the overall ANOVA was significant — the significance was being driven entirely by cluster 3.
+
+---
+
+## ROC Curve and AUC
+
+**Question:** using a continuous score (e.g., $r_1 + \sigma^2$) to predict a yes/no outcome (e.g., "did this pixel collapse severely?"), how good is that score at separating the two groups — across every possible cutoff, not just one?
+
+Any continuous score can be turned into a binary classifier by picking a threshold: "predict severe if score ≥ threshold." Different thresholds trade off two error types:
+
+- **True Positive Rate (TPR / Sensitivity):** of the pixels that truly are severe, what fraction did we correctly flag? $TPR = TP/(TP+FN)$
+- **False Positive Rate (FPR):** of the pixels that are *not* severe, what fraction did we incorrectly flag anyway? $FPR = FP/(FP+TN)$
+
+The ROC curve plots TPR (y-axis) against FPR (x-axis) as the threshold sweeps from strict (flag almost nothing) to loose (flag almost everything). AUC (Area Under the Curve) condenses that whole curve into one number: the probability that a randomly-chosen truly-severe pixel gets a higher score than a randomly-chosen truly-not-severe pixel.
+
+**Illustrative example** — 4 pixels, sorted by stress score, descending:
+
+| Pixel | Score | Truly severe? |
+|---|---|---|
+| A | 0.9 | yes |
+| B | 0.7 | no |
+| C | 0.5 | yes |
+| D | 0.2 | no |
+
+2 severe pixels (A, C), 2 non-severe (B, D). Sweeping the threshold down through each score and recomputing *cumulative* TPR/FPR (cumulative counts as each pixel gets included, in descending score order, no synthetic (0,0) anchor point — same method used in this project):
+
+| Pixel included | TP | FP | TPR | FPR |
+|---|---|---|---|---|
+| A | 1 | 0 | 0.5 | 0.0 |
+| A, B | 1 | 1 | 0.5 | 0.5 |
+| A, B, C | 2 | 1 | 1.0 | 0.5 |
+| A, B, C, D | 2 | 2 | 1.0 | 1.0 |
+
+AUC via the trapezoidal rule over these 4 (FPR, TPR) points (identical formula to the real code):
+
+$$AUC = \sum \Delta FPR \times \frac{TPR_i + TPR_{i+1}}{2}$$
+
+$$= (0.5-0)\times\frac{0.5+0.5}{2} + (0.5-0.5)\times\frac{0.5+1.0}{2} + (1.0-0.5)\times\frac{1.0+1.0}{2}$$
+
+$$= 0.25 + 0 + 0.5 = \mathbf{0.75}$$
+
+**Cross-check via the probability definition:** of all 4 (severe, non-severe) pairs — (A,B), (A,D), (C,B), (C,D) — the severe pixel scores higher in 3 of them (only C=0.5 loses to B=0.7). $3/4 = 0.75$ — matches exactly, as it must (the trapezoidal AUC and the "probability of correct ranking" are mathematically the same quantity).
+
+| AUC | Meaning |
+|---|---|
+| 0.5 | No better than a coin flip — the score carries no information about the outcome |
+| 1.0 | Perfect separation — every severe pixel scores higher than every non-severe pixel |
+| 0.5–0.7 | Weak-to-modest discrimination |
+| 0.7+ | Reasonably strong discrimination |
+
+**In this project:** the predictor score is $r_1 + \sigma^2$, ground truth is the top 20% most severe actual drop. Real results: NDVI AUC = 0.559, NDWI AUC = 0.569 — both barely above the 0.5 random baseline. This is the main piece of evidence that, while the tau signal is statistically real (per the ANOVA above), it's weak at the individual-pixel level: it can't reliably tell you *which specific pixel* will collapse worst.
+
+---
+
+## Choosing K: Elbow Method and Silhouette Score
+
+K-means requires deciding the number of clusters, K, in advance. Two diagnostic tools help pick a reasonable value by running K-means repeatedly across a range of K (here, K=2 to 8) and comparing how each K performs.
+
+### Elbow Method (WCSS)
+
+**Question:** as K increases, how much does within-cluster spread keep shrinking — and where do the improvements stop being worth the added complexity?
+
+WCSS = Within-Cluster Sum of Squares — for each point, the squared distance to its own cluster's center, summed over all points:
+
+$$WCSS = \sum_{k=1}^{K}\sum_{i \in \text{cluster } k} \lVert x_i - c_k \rVert^2$$
+
+WCSS *always* decreases as K increases (more clusters can only fit the data at least as well — in the extreme, K = N gives WCSS = 0, one cluster per point). The question isn't "which K minimizes WCSS" — more K always wins that trivially — it's "where does adding another cluster stop buying much." Plotted against K, WCSS drops steeply at first, then flattens into a shallow, diminishing-returns tail. The bend where the steep drop meets the flat tail is the "elbow" — a visual, somewhat subjective cue for a reasonable K.
+
+### Silhouette Score
+
+**Question:** for a given K, how well-separated are the resulting clusters — is each point clearly closer to its own cluster than to the nearest other one?
+
+For each point $i$, define:
+- $a(i)$ = average distance from $i$ to every other point in its **own** cluster (how tightly it fits where it was placed)
+- $b(i)$ = average distance from $i$ to every point in the **nearest other** cluster (how close the next-best option is)
+
+$$s(i) = \frac{b(i)-a(i)}{\max(a(i),b(i))}$$
+
+The **silhouette score** for a given K is the mean of $s(i)$ across all points.
+
+| $s(i)$ | Meaning |
+|---|---|
+| Close to +1 | Point fits its own cluster well, is far from the next-nearest cluster — good clustering |
+| Close to 0 | Point sits right on the boundary between two clusters — ambiguous |
+| Close to −1 | Point is, on average, closer to a *different* cluster than its own — likely mis-clustered |
+
+**Illustrative example** — 1 point, 2 candidate clusters:
+
+Point $i$ is at distance 1, 1, 2 from the other 3 points in its own cluster (own-cluster distances), and distance 4, 5 from the 2 points in the nearest other cluster:
+
+$$a(i) = \frac{1+1+2}{3} = 1.33 \qquad b(i) = \frac{4+5}{2} = 4.5$$
+
+$$s(i) = \frac{4.5-1.33}{\max(1.33,4.5)} = \frac{3.17}{4.5} \approx 0.70$$
+
+A silhouette of 0.70 for this point indicates it's well-placed — solidly closer to its own cluster than to the next-nearest one.
+
+**Why both, and why they can disagree:** WCSS keeps dropping no matter what (favors bigger K), while silhouette explicitly penalizes clusters that are close together / overlapping (can favor smaller K). When they disagree, that's real information — the "statistically optimal" K by silhouette isn't automatically the most *useful* or *interpretable* K.
+
+**In this project:** K is swept from 2 to 8, computing WCSS on the full pixel set and silhouette on a 5,000-pixel subsample (the full ~250k×250k distance matrix would be too large to compute directly). K=3 was kept for interpretability (the "no CSD / partial / full CSD" framing) even though the silhouette technically peaks at K=4 for NDVI (0.420 vs K=3's 0.411) — for NDWI, K=3 actually *is* the silhouette optimum (0.449, beating K=4's 0.437).
 

@@ -39,6 +39,7 @@ dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 index_config <- list(
   ndvi = list(
     tau_path     = "pixel_approach/data/processed/ndvi_pixel_tau.csv",
+    fire_path    = "pixel_approach/data/processed/pixel_fire_ndvi.csv",
     mat_path     = "pixel_approach/data/processed/ndvi_matrix.rds",
     drop_col     = "Actual_Drop_15_16",
     clusters_out = "pixel_approach/data/processed/ndvi_pixel_clusters.csv",
@@ -46,6 +47,7 @@ index_config <- list(
   ),
   ndwi = list(
     tau_path     = "pixel_approach/data/processed/ndwi_pixel_tau.csv",
+    fire_path    = "pixel_approach/data/processed/pixel_fire_ndwi.csv",
     mat_path     = "pixel_approach/data/processed/ndwi_matrix.rds",
     drop_col     = "Actual_NDWI_Drop_15_16",
     clusters_out = "pixel_approach/data/processed/ndwi_pixel_clusters.csv",
@@ -62,8 +64,16 @@ cluster_cols <- setNames(
   colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(K),
   as.character(seq_len(K))
 )
-clust_labels <- paste0(seq_len(K), c(" - no CSD", rep(" - partial", K - 2),
-                                     " - full CSD"))
+# rep(" - partial", K - 2) errors for K=1 (negative times); K=1 is
+# degenerate anyway (one cluster can't be both least and most stressed),
+# so it gets its own generic label rather than trying to force the
+# no-CSD/partial/full-CSD framing onto it.
+clust_labels <- if (K == 1) {
+  "1 - all"
+} else {
+  paste0(seq_len(K), c(" - no CSD", rep(" - partial", max(K - 2, 0)),
+                       " - full CSD"))
+}
 
 # ----------------------------------------------------------------------------
 # Core clustering step: K-sweep, k-means at K, stress-rank relabeling, save
@@ -76,6 +86,23 @@ run_clustering <- function(cfg, K, SEED) {
   d <- read_csv(cfg$tau_path, show_col_types = FALSE) |>
     filter(!is.na(tau_r1), !is.na(tau_var), !is.na(tau_skew))
   cat(sprintf("✓ %d pixels with valid tau_r1, tau_var, tau_skew\n", nrow(d)))
+
+  # Exclude pixels burned at any point during the 2000-2014 baseline window --
+  # a fire causes a sudden, discrete NDVI/NDWI crash unrelated to gradual
+  # drought stress, which would contaminate the tau_r1/tau_var trend
+  # statistics computed over that same window. Verified against real data
+  # (09_fire_validation.R) that even the earliest possible fires (2000-2003)
+  # still show a persistent NDVI deficit through 2014 -- no recovery-time
+  # cutoff is safe within this dataset's window, so any fire excludes.
+  fire_flags <- read_csv(cfg$fire_path, show_col_types = FALSE) |>
+    select(pixel_id, burned_baseline_00_14)
+  n_before <- nrow(d)
+  d <- d |>
+    left_join(fire_flags, by = "pixel_id") |>
+    filter(!burned_baseline_00_14) |>
+    select(-burned_baseline_00_14)
+  cat(sprintf("✓ Excluded %d pixels burned during 2000-2014 baseline (%d remain)\n",
+              n_before - nrow(d), nrow(d)))
 
   # Scale features before clustering (Euclidean distance is scale-sensitive)
   feat <- d |> select(tau_r1, tau_var) |> scale()
@@ -91,6 +118,10 @@ run_clustering <- function(cfg, K, SEED) {
   sil_idx  <- sample(nrow(feat), min(5000, nrow(feat)))
   feat_sil <- feat[sil_idx, ]
 
+  # Captures the sweep's own fit at k_i == K (same feat/seed/nstart/iter.max
+  # as the "final" fit below, so it's deterministically identical) to avoid
+  # running kmeans() a second time for the same K.
+  km_final <- NULL
   for (ki in seq_along(k_range)) {
     k_i <- k_range[ki]
     set.seed(SEED)
@@ -100,13 +131,18 @@ run_clustering <- function(cfg, K, SEED) {
                                     dist(feat_sil))[, 3])
     cat(sprintf("  k=%d  WCSS=%.1f  Silhouette=%.3f\n",
                 k_i, wcss_vec[ki], sil_vec[ki]))
+    if (k_i == K) km_final <- km_i
   }
   sweep_df <- data.frame(k = k_range, wcss = wcss_vec, silhouette = sil_vec)
 
   # --- K-means at chosen K ---
   cat(sprintf("Running k-means (k=%d, seed=%d)...\n", K, SEED))
-  set.seed(SEED)
-  km <- kmeans(feat, centers = K, nstart = 25, iter.max = 100)
+  if (is.null(km_final)) {
+    # K fell outside the swept 2:8 range, so it wasn't computed above
+    set.seed(SEED)
+    km_final <- kmeans(feat, centers = K, nstart = 25, iter.max = 100)
+  }
+  km <- km_final
   d$cluster_raw <- km$cluster
 
   # Re-label clusters by composite stress rank so colors are semantically
@@ -361,7 +397,14 @@ run_validation <- function(res, SEED) {
               res$cfg$label, nrow(val_data), nrow(val_thin),
               100 * nrow(val_thin) / nrow(val_data)))
 
-  aov_fit <- aov(val_thin[[drop_col]] ~ cluster, data = val_thin)
+  # bquote()/.() substitutes the real column name in as a symbol (not just
+  # a string that evaluates to one), so aov_fit$call — and therefore
+  # TukeyHSD's printed "Fit:" line — shows a clean `Actual_Drop_15_16 ~
+  # cluster` instead of a literal val_thin[[drop_col]] indexing expression
+  # or an as.formula(paste(...)) call. as.formula(paste(drop_col, "~
+  # cluster")) fits correctly too but still prints the paste() expression
+  # itself, since R's stored call reflects the calling code, not its value.
+  aov_fit <- eval(bquote(aov(.(as.name(drop_col)) ~ cluster, data = val_thin)))
   cat(sprintf("=== One-way ANOVA (spatially thinned): %s ~ cluster ===\n", drop_col))
   print(summary(aov_fit))
 
