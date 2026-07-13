@@ -2,21 +2,22 @@ library(tidyverse)
 library(sf)
 library(patchwork)
 
-# Spatial heatmaps of per-pixel CSD and collapse metrics, NDVI vs NDWI side
-# by side in each PDF:
+# Spatial heatmaps of per-pixel CSD metrics, NDVI vs NDWI side by side in
+# each PDF:
 #   (1) tau_r1               — lag-1 autocorrelation trend
 #   (2) tau_var               — variance trend
 #   (3) tau_skew              — skewness trend
-#   (4) Actual_*_Drop_15_16   — observed drop (baseline 2000-2011 mean minus
-#                               min 2015-2016); positive = collapsed more
 #
 # tau_r1/tau_var/tau_skew share a fixed [-1,1] color scale across both
 # panels — Kendall's tau means the same statistical thing regardless of
 # which series it's computed from, so a shared scale is directly
-# comparable. Actual_Drop panels scale independently — NDVI-drop and
-# NDWI-drop are different physical units (greenness vs. water content), so
-# a shared numeric scale wouldn't be meaningful; what matters is where each
-# map is most/least red, not whether the color-to-number mapping matches.
+# comparable.
+#
+# A 4th heatmap, Actual_*_Drop_15_16 (observed drop: baseline 2000-2011
+# mean minus min 2015-2016), used to be generated here too -- deprioritized
+# and commented out below (see 04_actual_drop.R, moved to deprecated/, for
+# why: real-world validation against MTBS/LCMAP/beetle is now the trusted
+# ground truth, and Actual_Drop doesn't agree with it on cluster severity).
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 
@@ -89,12 +90,13 @@ save_combined(
   out_file = "pixel_approach/charts/heatmap_tau_skew.pdf"
 )
 
-save_combined(
-  plot_heatmap(d_ndvi, "Actual_Drop_15_16", "NDVI", "#2166AC", "#D73027",
-               legend_name = "Actual Drop"),
-  plot_heatmap(d_ndwi, "Actual_NDWI_Drop_15_16", "NDWI", "#2166AC", "#D73027",
-               legend_name = "Actual Drop"),
-  title          = "Actual Drop 2015-2016\n(baseline 2000-2011 mean - min 2015-2016)",
-  out_file       = "pixel_approach/charts/heatmap_actual_drop.pdf",
-  collect_guides = FALSE
-)
+# Deprioritized -- see header note.
+# save_combined(
+#   plot_heatmap(d_ndvi, "Actual_Drop_15_16", "NDVI", "#2166AC", "#D73027",
+#                legend_name = "Actual Drop"),
+#   plot_heatmap(d_ndwi, "Actual_NDWI_Drop_15_16", "NDWI", "#2166AC", "#D73027",
+#                legend_name = "Actual Drop"),
+#   title          = "Actual Drop 2015-2016\n(baseline 2000-2011 mean - min 2015-2016)",
+#   out_file       = "pixel_approach/charts/heatmap_actual_drop.pdf",
+#   collect_guides = FALSE
+# )

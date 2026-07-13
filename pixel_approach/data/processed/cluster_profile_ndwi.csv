@@ -1,0 +1,4 @@
+cluster,n,tau_r1_mean,tau_var_mean,tau_skew_mean,resid_tau_r1_mean,resid_tau_skew_mean
+1,53135,-0.341,0.245,0.111,-0.645,0.035
+2,75924,0.486,0.115,0.445,0.187,0.366
+3,90625,0.547,0.331,-0.264,0.221,-0.327

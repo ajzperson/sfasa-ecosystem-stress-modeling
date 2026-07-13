@@ -25,8 +25,9 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 7. **SWE** — Snow Water Equivalent (TerraClimate) *(downloaded, not currently used)*
 8. **USFS IDS** — Forest Damage / Tree Mortality (Insect and Disease Survey)<br>
    USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS).
-9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP).
+9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(downloaded, superseded by MTBS)*.
 10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity).
+11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm).
 
 All raw downloads are shared across approaches and live under `data_common/raw/`.
 
@@ -42,8 +43,9 @@ All raw downloads are shared across approaches and live under `data_common/raw/`
 | NDWI | `data_common/raw/ndwi/MOD09A1.061_500m_aid0001.nc` (Google Drive, ~1,011 MB)<br>See [NDWI_source_location.md](../data_common/raw/ndwi/NDWI_source_location.md) | [NASA AppEEARS](https://appeears.earthdatacloud.nasa.gov/) (NASA Earthdata account required)<br>Area Sample request<br>Product: Terra MODIS Surface Reflectance Bands 1-7, MOD09A1.061, 500m, 8-day (2000-02-24 to Present)<br>Layers: `sur_refl_b02` (841–876nm) + `sur_refl_b05` (1230–1250nm)<br>Upload polygon: `docs_common/sierra_nevada_boundary.geojson`<br>Date range: 2000-01-01 to 2026-05-31<br>Output: NetCDF-4<br>Projection: MODIS Sinusoidal<br>NDWI = (B02 − B05) / (B02 + B05) computed locally after download, per [Gao 1996](https://doi.org/10.1016/S0034-4257(96)00067-3) — Gao's formula specifies 0.86μm and 1.24μm exactly, which Band 2 (858nm center) and Band 5 (1240nm center) match; Band 6 (1628–1652nm) is a different SWIR region used by other, separately-named indices | 2000-02-18 to 2026-05-25 · 8-day composites · clipped to `sierra_nevada_boundary.geojson` · 500m |
 | SWE *(unused)* | `data_common/raw/swe/TerraClimate_swe_2000-2025.nc` | `swe_raw <- getTerraClim(`<br>`  AOI       = sn_aoi,`<br>`  varname   = "swe",`<br>`  startDate = "2000-01-01",`<br>`  endDate   = "2025-12-31"`<br>`)` | 2000-01-01 to 2025-12-01 · 312 months · clipped to Sierra Nevada ecoregion boundary · ~4 km |
 | Forest Damage | `data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip` (Google Drive, ~166 MB)<br>See [FOREST_DAMAGE_source_location.md](../data_common/raw/forest_damage/FOREST_DAMAGE_source_location.md) | [USDA Forest Service Detection Surveys](https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/detection-surveys)<br>Scroll to "R5 IDS DATA DOWNLOADS" section<br>Download "R5 CA All Years IDS Data (ZIP, 159 MB)"<br>[Direct URL](https://www.fs.usda.gov/foresthealth/docs/IDS_Data_for_Download/CONUS_Region5_AllYears.gdb.zip)<br>No login required | 1997–2025 · annual · 348,829 damage polygons (99.2% Region 5 California; 0.8% spillover from neighboring Regions 4/6) |
-| Fire Perimeters | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg` (Google Drive, ~147 MB)<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
+| Fire Perimeters *(superseded by MTBS)* | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg` (Google Drive, ~147 MB)<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
 | MTBS | `data_common/raw/mtbs/` (pending download) | [MTBS Burn Severity Direct Download](https://burnseverity.cr.usgs.gov/direct-download)<br>Click "MTBS" → select California → select years 2000-2019 (single multi-year request supported)<br>Request is processed asynchronously (~1 hour); download link sent via email<br>Naming convention: `mtbs_<area>_<year>.zip` | California, 2000–2019 · annual thematic burn severity mosaics · GeoTIFF · 30m |
+| LCMAP | `data_common/raw/lcmap/` (pending download)<br>See [LCMAP_source_location.md](../data_common/raw/lcmap/LCMAP_source_location.md) | [LCMAP Mosaic Download](https://eros.usgs.gov/lcmap/apps/data-downloads)<br>Layers: `LCPRI` (Primary Land Cover) + `LCACHG` (Annual Land Cover Change)<br>Years: 2015-2019 only (validation window — see note below)<br>10 individual `.tif` downloads total (5 years × 2 layers)<br>Naming convention: `LCMAP_CU_<year>_V13_<layer>.tif` | Full CONUS (clipped to Sierra Nevada after download) · annual · GeoTIFF · 30m |
 
 ---
 
@@ -104,8 +106,8 @@ The raw file is a NetCDF-4 (`.nc`) file with the same 3D structure as VPD: **tim
 - Raw layer (`DAMAGE_AREAS_FLAT_AllYears_CONUS_Rgn5`) covers all forest damage causal agents (insects, disease, abiotic), not just bark beetle — downstream processing filters to bark-beetle-specific damage causal agent codes.
 - **Why acquired:** Bark beetle infestation is a candidate mechanism behind loss of resilience — used as ground-truth validation against modeled collapse signal.
 
-### Fire Perimeters — CAL FIRE FRAP Historical Fire Perimeters
-- **Why acquired:** distinguishes fire-caused NDVI decline from drought/climate-driven decline.
+### Fire Perimeters — CAL FIRE FRAP Historical Fire Perimeters *(superseded by MTBS)*
+- **Why acquired:** distinguishes fire-caused NDVI decline from drought/climate-driven decline. Superseded by MTBS (below) for this purpose — a perimeter is only a fire's outer boundary, not per-pixel severity. Raw data kept on disk but no longer used in the active pipeline.
 
 ### MTBS — Monitoring Trends in Burn Severity
 - **Why acquired:** Fire Perimeters gives only a fire's outer boundary polygon — large fires routinely contain unburned islands and low-severity patches inside that boundary, so treating every pixel inside the perimeter as "disturbed" overcounts. MTBS gives an actual severity class per 30m pixel (unburned-to-low, low, moderate, high, increased greenness/post-fire regrowth, plus an optional cloud/shadow/water mask class).
@@ -117,6 +119,18 @@ GeoTIFF, zipped, one file per state per year (`mtbs_<area>_<year>.zip`).
 **References**:
 - [MTBS home](https://www.mtbs.gov/)
 - [MTBS Product Descriptions](https://www.mtbs.gov/product-descriptions)
+
+### LCMAP — Land Change Monitoring, Assessment, and Projection
+- **Why acquired:** an independent tree-cover-loss/mortality validation signal, alongside the bark beetle ADS data. LCMAP's CCDC algorithm is built from multi-band (green/red/NIR/SWIR) Landsat spectral time series with harmonic modeling and break detection — a genuinely different methodology from a vegetation-index (NDVI/NDWI) trend line, avoiding circularity between the collapse-detection method and its own validation data.
+- Two layers used: `LCPRI` (Primary Land Cover — classified land cover per pixel per year) and `LCACHG` (Annual Land Cover Change — year-to-year land cover transitions; the layer that actually flags a pixel losing tree cover).
+- Only the 2015-2019 validation window is needed, unlike MTBS — land cover change during the 2000-2014 baseline isn't an unrelated confound the way fire is (it could plausibly be part of the resilience-loss signal itself), so there's no baseline-exclusion use case here.
+
+#### Raw data format
+GeoTIFF, zipped (zip contains `.tif` + `.xml` metadata), one file per year per layer, CONUS-wide mosaic (clipped to Sierra Nevada after download).
+
+**References**:
+- [USGS LCMAP Collection 1.3](https://www.usgs.gov/data/lcmap-land-cover-and-land-change-conterminous-us-collection-13)
+- [USGS EROS Archive — LCMAP CCDC Products](https://www.usgs.gov/centers/eros/science/usgs-eros-archive-lcmap-continuous-change-detection-classification-ccdc)
 
 ---
 
