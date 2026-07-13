@@ -26,6 +26,7 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 8. **USFS IDS** — Forest Damage / Tree Mortality (Insect and Disease Survey)<br>
    USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS).
 9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP).
+10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity).
 
 All raw downloads are shared across approaches and live under `data_common/raw/`.
 
@@ -42,6 +43,7 @@ All raw downloads are shared across approaches and live under `data_common/raw/`
 | SWE *(unused)* | `data_common/raw/swe/TerraClimate_swe_2000-2025.nc` | `swe_raw <- getTerraClim(`<br>`  AOI       = sn_aoi,`<br>`  varname   = "swe",`<br>`  startDate = "2000-01-01",`<br>`  endDate   = "2025-12-31"`<br>`)` | 2000-01-01 to 2025-12-01 · 312 months · clipped to Sierra Nevada ecoregion boundary · ~4 km |
 | Forest Damage | `data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip` (Google Drive, ~166 MB)<br>See [FOREST_DAMAGE_source_location.md](../data_common/raw/forest_damage/FOREST_DAMAGE_source_location.md) | [USDA Forest Service Detection Surveys](https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/detection-surveys)<br>Scroll to "R5 IDS DATA DOWNLOADS" section<br>Download "R5 CA All Years IDS Data (ZIP, 159 MB)"<br>[Direct URL](https://www.fs.usda.gov/foresthealth/docs/IDS_Data_for_Download/CONUS_Region5_AllYears.gdb.zip)<br>No login required | 1997–2025 · annual · 348,829 damage polygons (99.2% Region 5 California; 0.8% spillover from neighboring Regions 4/6) |
 | Fire Perimeters | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg` (Google Drive, ~147 MB)<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
+| MTBS | `data_common/raw/mtbs/` (pending download) | [MTBS Burn Severity Direct Download](https://burnseverity.cr.usgs.gov/direct-download)<br>Click "MTBS" → select California → select years 2000-2019 (single multi-year request supported)<br>Request is processed asynchronously (~1 hour); download link sent via email<br>Naming convention: `mtbs_<area>_<year>.zip` | California, 2000–2019 · annual thematic burn severity mosaics · GeoTIFF · 30m |
 
 ---
 
@@ -104,6 +106,17 @@ The raw file is a NetCDF-4 (`.nc`) file with the same 3D structure as VPD: **tim
 
 ### Fire Perimeters — CAL FIRE FRAP Historical Fire Perimeters
 - **Why acquired:** distinguishes fire-caused NDVI decline from drought/climate-driven decline.
+
+### MTBS — Monitoring Trends in Burn Severity
+- **Why acquired:** Fire Perimeters gives only a fire's outer boundary polygon — large fires routinely contain unburned islands and low-severity patches inside that boundary, so treating every pixel inside the perimeter as "disturbed" overcounts. MTBS gives an actual severity class per 30m pixel (unburned-to-low, low, moderate, high, increased greenness/post-fire regrowth, plus an optional cloud/shadow/water mask class).
+- Organized as one GeoTIFF mosaic per US state per year; 500m study pixels are aggregated from the underlying 30m MTBS pixels (~17×17 per study pixel).
+
+#### Raw data format
+GeoTIFF, zipped, one file per state per year (`mtbs_<area>_<year>.zip`).
+
+**References**:
+- [MTBS home](https://www.mtbs.gov/)
+- [MTBS Product Descriptions](https://www.mtbs.gov/product-descriptions)
 
 ---
 

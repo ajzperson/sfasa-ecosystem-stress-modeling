@@ -39,7 +39,6 @@ dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 index_config <- list(
   ndvi = list(
     tau_path     = "pixel_approach/data/processed/ndvi_pixel_tau.csv",
-    fire_path    = "pixel_approach/data/processed/pixel_fire_ndvi.csv",
     mat_path     = "pixel_approach/data/processed/ndvi_matrix.rds",
     drop_col     = "Actual_Drop_15_16",
     clusters_out = "pixel_approach/data/processed/ndvi_pixel_clusters.csv",
@@ -47,7 +46,6 @@ index_config <- list(
   ),
   ndwi = list(
     tau_path     = "pixel_approach/data/processed/ndwi_pixel_tau.csv",
-    fire_path    = "pixel_approach/data/processed/pixel_fire_ndwi.csv",
     mat_path     = "pixel_approach/data/processed/ndwi_matrix.rds",
     drop_col     = "Actual_NDWI_Drop_15_16",
     clusters_out = "pixel_approach/data/processed/ndwi_pixel_clusters.csv",
@@ -56,6 +54,7 @@ index_config <- list(
 )
 
 sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sequoia_boundary <- st_read("county_approach/docs/cluster_sequoia.geojson", quiet = TRUE)
 
 # Colors match heatmap convention: blue (rank 1, least stressed) -> red
 # (rank K, most stressed). Shared across both indices' charts since the
@@ -86,23 +85,6 @@ run_clustering <- function(cfg, K, SEED) {
   d <- read_csv(cfg$tau_path, show_col_types = FALSE) |>
     filter(!is.na(tau_r1), !is.na(tau_var), !is.na(tau_skew))
   cat(sprintf("✓ %d pixels with valid tau_r1, tau_var, tau_skew\n", nrow(d)))
-
-  # Exclude pixels burned at any point during the 2000-2014 baseline window --
-  # a fire causes a sudden, discrete NDVI/NDWI crash unrelated to gradual
-  # drought stress, which would contaminate the tau_r1/tau_var trend
-  # statistics computed over that same window. Verified against real data
-  # (09_fire_validation.R) that even the earliest possible fires (2000-2003)
-  # still show a persistent NDVI deficit through 2014 -- no recovery-time
-  # cutoff is safe within this dataset's window, so any fire excludes.
-  fire_flags <- read_csv(cfg$fire_path, show_col_types = FALSE) |>
-    select(pixel_id, burned_baseline_00_14)
-  n_before <- nrow(d)
-  d <- d |>
-    left_join(fire_flags, by = "pixel_id") |>
-    filter(!burned_baseline_00_14) |>
-    select(-burned_baseline_00_14)
-  cat(sprintf("✓ Excluded %d pixels burned during 2000-2014 baseline (%d remain)\n",
-              n_before - nrow(d), nrow(d)))
 
   # Scale features before clustering (Euclidean distance is scale-sensitive)
   feat <- d |> select(tau_r1, tau_var) |> scale()
@@ -260,6 +242,8 @@ build_map_panel <- function(res) {
     geom_point(size = 0.05, alpha = 0.5) +
     geom_sf(data = sn_boundary, fill = NA, color = "grey20",
             linewidth = 0.4, inherit.aes = FALSE) +
+    geom_sf(data = sequoia_boundary, fill = NA, color = "black",
+            linewidth = 0.6, linetype = "dashed", inherit.aes = FALSE) +
     scale_color_manual(values = cluster_cols, name = "Stress level",
                        labels = clust_labels) +
     coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
