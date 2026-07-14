@@ -39,13 +39,19 @@ options(future.globals.maxSize = FUTURE_MAX_SIZE_MB * 1024^2)
 
 index_config <- list(
   ndvi = list(
-    matrix_path = "pixel_approach/data/processed/ndvi_matrix.rds",
-    out_file    = "pixel_approach/data/processed/ndvi_pixel_tau.csv",
+    matrix_path      = "pixel_approach/data/processed/ndvi_matrix.rds",
+    out_file         = "pixel_approach/data/processed/ndvi_pixel_tau.csv",
+    rolling_r1_file  = "pixel_approach/data/processed/ndvi_rolling_r1.rds",
+    rolling_var_file = "pixel_approach/data/processed/ndvi_rolling_var.rds",
+    rolling_skew_file = "pixel_approach/data/processed/ndvi_rolling_skew.rds",
     label       = "NDVI"
   ),
   ndwi = list(
-    matrix_path = "pixel_approach/data/processed/ndwi_matrix.rds",
-    out_file    = "pixel_approach/data/processed/ndwi_pixel_tau.csv",
+    matrix_path      = "pixel_approach/data/processed/ndwi_matrix.rds",
+    out_file         = "pixel_approach/data/processed/ndwi_pixel_tau.csv",
+    rolling_r1_file  = "pixel_approach/data/processed/ndwi_rolling_r1.rds",
+    rolling_var_file = "pixel_approach/data/processed/ndwi_rolling_var.rds",
+    rolling_skew_file = "pixel_approach/data/processed/ndwi_rolling_skew.rds",
     label       = "NDWI"
   )
 )
@@ -98,6 +104,7 @@ edge_na_run <- function(x) {
 # specifically, so the same code produces pixel_tau.csv for NDVI and
 # ndwi_pixel_tau.csv for NDWI.
 run_pixel_csd <- function(mat, var_label, out_file,
+                           rolling_r1_file, rolling_var_file, rolling_skew_file,
                            vpd_mat_full, ppt_mat_full, pixel_meta,
                            WIN, NA_THRESHOLD, EDGE_NA_LIMIT, N_WORKERS) {
 
@@ -168,6 +175,12 @@ run_pixel_csd <- function(mat, var_label, out_file,
               setNames(rep(NA_real_, 12), sprintf("seas_%02d", 1:12)),
               b0 = NA_real_, b1 = NA_real_, b2 = NA_real_)
 
+  # Placeholder for dropped pixels' rolling r1/var/skew series (below) --
+  # same length as every "ok" pixel's series (length(window_idx), fixed for
+  # every pixel), so rbind-ing all pixels' series into a matrix afterward
+  # produces a consistent shape regardless of drop status.
+  na_series <- rep(NA_real_, length(window_idx))
+
   # Every pixel's 7-step process (interpolate -> STL -> deseasonalize -> filter
   # to growing season -> climate correction -> rolling CSD stats -> Kendall's
   # tau) is fully independent of every other pixel, so this is embarrassingly
@@ -185,12 +198,14 @@ run_pixel_csd <- function(mat, var_label, out_file,
 
     # skip pixels with too many NAs — interpolation would be mostly fabricated
     if (sum(is.na(y)) >= .pp_na_limit)
-      return(list(status = "dropped_high_na", row = .pp_na_row))
+      return(list(status = "dropped_high_na", row = .pp_na_row,
+                  r1_series = .pp_na_series, var_series = .pp_na_series, skew_series = .pp_na_series))
 
     # skip pixels with a long leading/trailing NA run — na.approx(rule=2) would
     # flatline it, distorting rolling var/r1 at the flat-to-real transition
     if (edge_na_run(y) > .pp_EDGE_NA_LIMIT || edge_na_run(rev(y)) > .pp_EDGE_NA_LIMIT)
-      return(list(status = "dropped_edge_na", row = .pp_na_row))
+      return(list(status = "dropped_edge_na", row = .pp_na_row,
+                  r1_series = .pp_na_series, var_series = .pp_na_series, skew_series = .pp_na_series))
 
     # linear interpolation for remaining NAs; rule=2 fills edge NAs by extension
     y <- as.numeric(zoo::na.approx(y, na.rm = FALSE, rule = 2))
@@ -202,7 +217,8 @@ run_pixel_csd <- function(mat, var_label, out_file,
       error = function(e) NULL
     )
     if (is.null(decomp))
-      return(list(status = "dropped_stl_fail", row = .pp_na_row))
+      return(list(status = "dropped_stl_fail", row = .pp_na_row,
+                  r1_series = .pp_na_series, var_series = .pp_na_series, skew_series = .pp_na_series))
 
     # y_deseas = y - seasonal component (keeps trend + remainder). Same
     # approach as cluster-level src/11_1_csd_manual.R.
@@ -227,7 +243,8 @@ run_pixel_csd <- function(mat, var_label, out_file,
       error = function(e) NULL
     )
     if (is.null(clim_fit))
-      return(list(status = "dropped_clim_fail", row = .pp_na_row))
+      return(list(status = "dropped_clim_fail", row = .pp_na_row,
+                  r1_series = .pp_na_series, var_series = .pp_na_series, skew_series = .pp_na_series))
     clim_resid <- y_gs - predict(clim_fit, newdata = lm_data)
 
     n <- length(clim_resid)
@@ -248,7 +265,8 @@ run_pixel_csd <- function(mat, var_label, out_file,
 
     valid <- which(!is.na(r1_vec))
     if (length(valid) < 10)
-      return(list(status = "dropped_insufficient_valid", row = .pp_na_row))
+      return(list(status = "dropped_insufficient_valid", row = .pp_na_row,
+                  r1_series = .pp_na_series, var_series = .pp_na_series, skew_series = .pp_na_series))
 
     idx    <- seq_along(valid)
     t_r1   <- cor.test(idx, r1_vec[valid],   method = "kendall")
@@ -269,7 +287,15 @@ run_pixel_csd <- function(mat, var_label, out_file,
         b0 = unname(round(coefs["(Intercept)"], 4)),
         b1 = unname(round(coefs["vpd"], 4)),
         b2 = unname(round(coefs["ppt"], 4))
-      )
+      ),
+      # Rolling r1/var/skew series (length(valid) == length(window_idx) == 82
+      # for every "ok" pixel, since clim_resid has no internal NAs -- these
+      # are the actual month-by-month values Kendall's tau above collapses
+      # into a single number. Saved so a downstream timeline chart can show
+      # the real trajectory instead of just the summary statistic.
+      r1_series   = unname(round(r1_vec[valid],   4)),
+      var_series  = unname(round(var_vec[valid],  4)),
+      skew_series = unname(round(skew_vec[valid], 4))
     )
   }
 
@@ -292,6 +318,7 @@ run_pixel_csd <- function(mat, var_label, out_file,
   needed <- list(.pp_mat = mat, .pp_vpd_mat = vpd_mat, .pp_ppt_mat = ppt_mat,
                  .pp_gs_idx = gs_idx, .pp_window_idx = window_idx,
                  .pp_window_dates = window_dates, .pp_na_row = na_row,
+                 .pp_na_series = na_series,
                  .pp_WIN = WIN, .pp_EDGE_NA_LIMIT = EDGE_NA_LIMIT,
                  .pp_na_limit = na_limit, .pp_col_months = col_months,
                  .pp_baseline_gs = baseline_gs, .pp_series_start = series_start)
@@ -346,6 +373,26 @@ run_pixel_csd <- function(mat, var_label, out_file,
 
   write_csv(results, out_file)
   cat(sprintf("✓ Saved: %s\n", out_file))
+
+  # Rolling r1/var/skew series, one row per pixel (same order as results
+  # above) and one column per rolling-window end date -- the month-by-month
+  # trajectory that Kendall's tau collapses into tau_r1/tau_var/tau_skew.
+  # Column names are the window end dates so downstream scripts (e.g. a
+  # timeline chart) can read dates directly off the matrix.
+  window_end_dates <- as.character(vapply(window_dates, function(d) as.character(tail(d, 1)), character(1)))
+
+  r1_matrix   <- do.call(rbind, lapply(pixel_results, `[[`, "r1_series"))
+  var_matrix  <- do.call(rbind, lapply(pixel_results, `[[`, "var_series"))
+  skew_matrix <- do.call(rbind, lapply(pixel_results, `[[`, "skew_series"))
+  colnames(r1_matrix) <- colnames(var_matrix) <- colnames(skew_matrix) <- window_end_dates
+  rownames(r1_matrix) <- rownames(var_matrix) <- rownames(skew_matrix) <- NULL
+
+  saveRDS(r1_matrix, rolling_r1_file)
+  cat(sprintf("✓ Saved: %s\n", rolling_r1_file))
+  saveRDS(var_matrix, rolling_var_file)
+  cat(sprintf("✓ Saved: %s\n", rolling_var_file))
+  saveRDS(skew_matrix, rolling_skew_file)
+  cat(sprintf("✓ Saved: %s\n", rolling_skew_file))
 }
 
 # R here is linked against Apple's Accelerate/vecLib BLAS, which multi-threads
@@ -364,6 +411,7 @@ for (idx in INDICES) {
   cat(sprintf("\nLoading %s matrix (%s)...\n", cfg$label, cfg$matrix_path))
   mat <- readRDS(cfg$matrix_path)
   run_pixel_csd(mat, cfg$label, cfg$out_file,
+                cfg$rolling_r1_file, cfg$rolling_var_file, cfg$rolling_skew_file,
                 vpd_mat_full, ppt_mat_full, pixel_meta,
                 WIN, NA_THRESHOLD, EDGE_NA_LIMIT, N_WORKERS)
   rm(mat)

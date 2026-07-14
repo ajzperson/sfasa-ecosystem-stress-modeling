@@ -4,6 +4,19 @@
 # Large raw satellite data (too big for git; see *_source_location.md)
 data_common/raw/ndvi/*.nc
 data_common/raw/ndwi/*.nc
+data_common/raw/mtbs/tif/
+data_common/raw/fire_perimeters/*.gpkg
+data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb/
+data_common/raw/lcmap/*.tif
+data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip
+data_common/raw/prism/prismz.zip
+data_common/raw/prism/prismz/
+data_common/raw/ecoregion/us_eco_l3/
+
+# macOS zip artifact -- shows up in any zip created on macOS (confirmed
+# present in prism/prismz.zip); catches it wherever it lands, not just
+# where we've happened to notice it.
+**/__MACOSX/
 
 # History files
 .Rhistory

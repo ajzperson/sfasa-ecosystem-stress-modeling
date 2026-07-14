@@ -27,9 +27,26 @@ library(sf)
 
 sf_use_s2(FALSE)
 
+MTBS_ZIP <- "data_common/raw/mtbs/bsp_ugjds3epryqgif0ej5sb.zip"
 MTBS_DIR <- "data_common/raw/mtbs/tif"
 BURNED_SEVERITY <- c(3, 4)  # moderate, high
 CACHE_DIR <- "pixel_approach/data/processed"
+
+# The MTBS direct-download service bundles all requested years into one
+# outer zip, which itself contains one inner zip per year (mtbs_CA_<year>.zip,
+# each holding that year's .tif + .xml directly at its root) -- a two-level
+# unzip, unlike the single-level unzip in 08_beetle_validation.R.
+if (!dir.exists(MTBS_DIR) || length(list.files(MTBS_DIR, pattern = "\\.tif$")) == 0) {
+  cat("Unzipping MTBS data (two levels: outer bundle -> per-year zips)...\n")
+  tmp_dir <- tempfile("mtbs_extract_")
+  dir.create(tmp_dir)
+  unzip(MTBS_ZIP, exdir = tmp_dir)
+  inner_zips <- list.files(tmp_dir, pattern = "\\.zip$", full.names = TRUE)
+  dir.create(MTBS_DIR, showWarnings = FALSE, recursive = TRUE)
+  for (z in inner_zips) unzip(z, exdir = MTBS_DIR)
+  unlink(tmp_dir, recursive = TRUE)
+  cat(sprintf("✓ Extracted %d years of MTBS data to %s\n", length(inner_zips), MTBS_DIR))
+}
 
 # --------------------------------------------------------------------------
 # 1. Build a common Sierra-Nevada-sized template grid (MTBS's own CRS/30m),

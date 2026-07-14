@@ -17,7 +17,7 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 1. **EPA Boundary** — EPA Level III Ecoregions shapefile (full continental US).<br>
    EPA = Environmental Protection Agency (the U.S. federal agency).<br>
    Used to generate the Sierra Nevada ecoregion polygon (spatial framework/mask that every raw dataset gets clipped/extracted to).
-2. **Kaggle** — California Wildfire Incidents (validation data)
+2. **Kaggle** — California Wildfire Incidents (downloaded, not currently used)
 3. **VPD** — Vapor Pressure Deficit (TerraClimate)
 4. **PRISM** — Temperature + Precipitation
 5. **NDVI** — Normalized Difference Vegetation Index (NASA MODIS)
@@ -25,11 +25,9 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 7. **SWE** — Snow Water Equivalent (TerraClimate) *(downloaded, not currently used)*
 8. **USFS IDS** — Forest Damage / Tree Mortality (Insect and Disease Survey)<br>
    USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS).
-9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(downloaded, superseded by MTBS)*.
+9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(downloaded, superseded by MTBS, not currently used)*.
 10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity).
 11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm).
-
-All raw downloads are shared across approaches and live under `data_common/raw/`.
 
 ### Raw Data Inventory
 
@@ -44,8 +42,8 @@ All raw downloads are shared across approaches and live under `data_common/raw/`
 | SWE *(unused)* | `data_common/raw/swe/TerraClimate_swe_2000-2025.nc` | `swe_raw <- getTerraClim(`<br>`  AOI       = sn_aoi,`<br>`  varname   = "swe",`<br>`  startDate = "2000-01-01",`<br>`  endDate   = "2025-12-31"`<br>`)` | 2000-01-01 to 2025-12-01 · 312 months · clipped to Sierra Nevada ecoregion boundary · ~4 km |
 | Forest Damage | `data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip` (Google Drive, ~166 MB)<br>See [FOREST_DAMAGE_source_location.md](../data_common/raw/forest_damage/FOREST_DAMAGE_source_location.md) | [USDA Forest Service Detection Surveys](https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/detection-surveys)<br>Scroll to "R5 IDS DATA DOWNLOADS" section<br>Download "R5 CA All Years IDS Data (ZIP, 159 MB)"<br>[Direct URL](https://www.fs.usda.gov/foresthealth/docs/IDS_Data_for_Download/CONUS_Region5_AllYears.gdb.zip)<br>No login required | 1997–2025 · annual · 348,829 damage polygons (99.2% Region 5 California; 0.8% spillover from neighboring Regions 4/6) |
 | Fire Perimeters *(superseded by MTBS)* | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg` (Google Drive, ~147 MB)<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
-| MTBS | `data_common/raw/mtbs/` (pending download) | [MTBS Burn Severity Direct Download](https://burnseverity.cr.usgs.gov/direct-download)<br>Click "MTBS" → select California → select years 2000-2019 (single multi-year request supported)<br>Request is processed asynchronously (~1 hour); download link sent via email<br>Naming convention: `mtbs_<area>_<year>.zip` | California, 2000–2019 · annual thematic burn severity mosaics · GeoTIFF · 30m |
-| LCMAP | `data_common/raw/lcmap/` (pending download)<br>See [LCMAP_source_location.md](../data_common/raw/lcmap/LCMAP_source_location.md) | [LCMAP Mosaic Download](https://eros.usgs.gov/lcmap/apps/data-downloads)<br>Layers: `LCPRI` (Primary Land Cover) + `LCACHG` (Annual Land Cover Change)<br>Years: 2015-2019 only (validation window — see note below)<br>10 individual `.tif` downloads total (5 years × 2 layers)<br>Naming convention: `LCMAP_CU_<year>_V13_<layer>.tif` | Full CONUS (clipped to Sierra Nevada after download) · annual · GeoTIFF · 30m |
+| MTBS | `data_common/raw/mtbs/bsp_ugjds3epryqgif0ej5sb.zip` | [MTBS Burn Severity Direct Download](https://burnseverity.cr.usgs.gov/direct-download)<br>Click "MTBS" → select California → select years 2000-2019 (single multi-year request supported)<br>Request is processed asynchronously (~1 hour); download link sent via email | California, 2000–2019 · annual thematic burn severity mosaics · GeoTIFF · 30m |
+| LCMAP | `data_common/raw/lcmap/` <br>See [LCMAP_source_location.md](../data_common/raw/lcmap/LCMAP_source_location.md) | [LCMAP Mosaic Download](https://eros.usgs.gov/lcmap/apps/data-downloads)<br>Layers: `LCPRI` (Primary Land Cover) + `LCACHG` (Annual Land Cover Change)<br>Years: 2015-2019 (5 years × 2 layers) | Full CONUS (clipped to Sierra Nevada after download) · annual · GeoTIFF · 30m |
 
 ---
 
@@ -64,9 +62,6 @@ All raw downloads are shared across approaches and live under `data_common/raw/`
 
 - **Why VPD over PDSI:** VPD is a more direct measure of atmospheric water demand that drove tree mortality.
 
-#### Raw data format
-The raw file is a NetCDF-4 (`.nc`) file — a scientific format for multidimensional arrays, not inspectable like a CSV. It contains a 3D array: **312 monthly time steps × latitude grid × longitude grid**. TerraClimate is a global dataset at ~4 km resolution. Each cell in the grid holds a VPD value in kPa for that location and month. Readable in R with `terra::rast()` or `ncdf4::nc_open()`.
-
 **References**:
 - [TerraClimate — Climatology Lab](https://www.climatologylab.org/terraclimate.html)
 - [Abatzoglou et al. 2018, *Scientific Data*](https://www.nature.com/articles/sdata2017191)
@@ -77,27 +72,11 @@ The raw file is a NetCDF-4 (`.nc`) file — a scientific format for multidimensi
 - `tmean`: mean temperature (average of daily high and low), in degrees Celsius
 - `tmin`: monthly minimum temperature, in degrees Celsius
 - `tmax`: monthly maximum temperature, in degrees Celsius
-
-```r
-library(prism)
-prism_set_dl_dir("data_common/raw/prism/prismz")
-get_prism_monthlys(type = "ppt", years = 2000:2026, keepZip = FALSE)
-get_prism_monthlys(type = "tmean", years = 2000:2026, keepZip = FALSE)
-get_prism_monthlys(type = "tmin", years = 2000:2026, keepZip = FALSE)
-get_prism_monthlys(type = "tmax", years = 2000:2026, keepZip = FALSE)
-```
-
-#### Raw data format
-PRISM downloads as a collection of `.bil` (Band Interleaved by Line) raster files — one file per variable per month, saved under `data_common/raw/prism/prismz/`. Unlike a single NetCDF file, each month is its own file. Each `.bil` file is a 2D raster (latitude × longitude) covering the contiguous United States at ~4 km resolution, holding one value per pixel for that variable and month. PRISM is US-only (unlike TerraClimate which is global), but higher quality for the US because it incorporates weather station data and terrain adjustments.
+- PRISM is US-only (unlike TerraClimate which is global), but higher quality for the US because it incorporates weather station data and terrain adjustments.
 
 **References**:
 - [PRISM Climate Group — Oregon State University](https://prism.oregonstate.edu/)
 - [Parameter-elevation Regressions on Independent Slopes Model (PRISM) — Adaptation Clearinghouse](https://www.adaptationclearinghouse.org/resources/parameter-elevation-regressions-on-independent-slopes-model-prism.html)
-
-### NDVI — Normalized Difference Vegetation Index
-
-#### Raw data format
-The raw file is a NetCDF-4 (`.nc`) file with the same 3D structure as VPD: **time steps × latitude × longitude**. Unlike VPD (monthly) and PRISM (monthly), NDVI is a 16-day composite — one layer every 16 days, giving 605 time steps from 2000-02-18 to 2026-05-25. Spatial resolution is ~500m per pixel, much finer than VPD (~4km) or PRISM (~4km). AppEEARS clips the file to the submitted polygon.
 
 ### SWE — Snow Water Equivalent (TerraClimate) *(not currently used)*
 - **Variable:** `swe` (Snow Water Equivalent, mm)
@@ -113,9 +92,6 @@ The raw file is a NetCDF-4 (`.nc`) file with the same 3D structure as VPD: **tim
 - **Why acquired:** Fire Perimeters gives only a fire's outer boundary polygon — large fires routinely contain unburned islands and low-severity patches inside that boundary, so treating every pixel inside the perimeter as "disturbed" overcounts. MTBS gives an actual severity class per 30m pixel (unburned-to-low, low, moderate, high, increased greenness/post-fire regrowth, plus an optional cloud/shadow/water mask class).
 - Organized as one GeoTIFF mosaic per US state per year; 500m study pixels are aggregated from the underlying 30m MTBS pixels (~17×17 per study pixel).
 
-#### Raw data format
-GeoTIFF, zipped, one file per state per year (`mtbs_<area>_<year>.zip`).
-
 **References**:
 - [MTBS home](https://www.mtbs.gov/)
 - [MTBS Product Descriptions](https://www.mtbs.gov/product-descriptions)
@@ -124,9 +100,6 @@ GeoTIFF, zipped, one file per state per year (`mtbs_<area>_<year>.zip`).
 - **Why acquired:** an independent tree-cover-loss/mortality validation signal, alongside the bark beetle ADS data. LCMAP's CCDC algorithm is built from multi-band (green/red/NIR/SWIR) Landsat spectral time series with harmonic modeling and break detection — a genuinely different methodology from a vegetation-index (NDVI/NDWI) trend line, avoiding circularity between the collapse-detection method and its own validation data.
 - Two layers used: `LCPRI` (Primary Land Cover — classified land cover per pixel per year) and `LCACHG` (Annual Land Cover Change — year-to-year land cover transitions; the layer that actually flags a pixel losing tree cover).
 - Only the 2015-2019 validation window is needed, unlike MTBS — land cover change during the 2000-2014 baseline isn't an unrelated confound the way fire is (it could plausibly be part of the resilience-loss signal itself), so there's no baseline-exclusion use case here.
-
-#### Raw data format
-GeoTIFF, zipped (zip contains `.tif` + `.xml` metadata), one file per year per layer, CONUS-wide mosaic (clipped to Sierra Nevada after download).
 
 **References**:
 - [USGS LCMAP Collection 1.3](https://www.usgs.gov/data/lcmap-land-cover-and-land-change-conterminous-us-collection-13)

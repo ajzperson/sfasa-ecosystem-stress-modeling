@@ -121,9 +121,13 @@ test_that("run_pixel_csd processes a normal pixel end-to-end and correctly drops
 
   pixel_meta <- data.frame(pixel_id = 1:2, lon = c(-120, -120), lat = c(38, 38))
 
-  out_file <- tempfile(fileext = ".csv")
+  out_file   <- tempfile(fileext = ".csv")
+  r1_file    <- tempfile(fileext = ".rds")
+  var_file   <- tempfile(fileext = ".rds")
+  skew_file  <- tempfile(fileext = ".rds")
   future::plan(future::multisession, workers = 2)
-  run_pixel_csd(mat, "SYNTH-TEST", out_file, vpd_mat, ppt_mat, pixel_meta,
+  run_pixel_csd(mat, "SYNTH-TEST", out_file, r1_file, var_file, skew_file,
+                vpd_mat, ppt_mat, pixel_meta,
                 WIN = 12, NA_THRESHOLD = 0.30, EDGE_NA_LIMIT = 6, N_WORKERS = 2)
   future::plan(future::sequential)
 
@@ -134,4 +138,23 @@ test_that("run_pixel_csd processes a normal pixel end-to-end and correctly drops
   expect_true(is.na(result$tau_r1[2]))    # high-NA pixel dropped
   expect_true(all(result$tau_r1 >= -1 & result$tau_r1 <= 1, na.rm = TRUE))
   expect_true(all(result$tau_var >= -1 & result$tau_var <= 1, na.rm = TRUE))
+
+  # Rolling r1/var/skew series: 2 rows (pixels) x (48 growing-season-ish
+  # months - WIN=12 + 1) columns; row 1 (normal pixel) real values, row 2
+  # (dropped pixel) all-NA, same shape as row 1 either way.
+  r1_matrix   <- readRDS(r1_file)
+  var_matrix  <- readRDS(var_file)
+  skew_matrix <- readRDS(skew_file)
+
+  expect_equal(nrow(r1_matrix), 2)
+  expect_equal(nrow(var_matrix), 2)
+  expect_equal(nrow(skew_matrix), 2)
+  expect_true(ncol(r1_matrix) > 0)
+  expect_equal(ncol(r1_matrix), ncol(var_matrix))
+  expect_equal(ncol(r1_matrix), ncol(skew_matrix))
+  expect_false(any(is.na(r1_matrix[1, ])))   # normal pixel: fully populated
+  expect_true(all(is.na(r1_matrix[2, ])))    # dropped pixel: all-NA placeholder
+  expect_true(all(r1_matrix[1, ] >= -1 & r1_matrix[1, ] <= 1))
+  # Column names are the window end dates, parseable back to real dates
+  expect_false(anyNA(as.Date(colnames(r1_matrix))))
 })
