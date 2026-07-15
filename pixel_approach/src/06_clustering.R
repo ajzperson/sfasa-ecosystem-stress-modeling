@@ -49,7 +49,6 @@ library(cluster)
 #   pixel_approach/data/processed/cluster_profile_ndwi.csv
 #   pixel_approach/charts/cluster_k_sweep.pdf         (NDVI/NDWI stacked)
 #   pixel_approach/charts/cluster_map.pdf              (NDVI/NDWI side by side)
-#   pixel_approach/charts/cluster_timelines.pdf   (NDVI/NDWI side by side, independent y-scales)
 
 if (!exists("K"))       K       <- 3
 if (!exists("SEED"))    SEED    <- 42
@@ -341,65 +340,6 @@ cat("✓ Saved: pixel_approach/charts/cluster_map.pdf\n")
 # rebuilds this panel directly from ndvi_pixel_clusters.csv/
 # ndwi_pixel_clusters.csv (cheap, and that data already persists), reusing
 # the same styling as build_map_panel() above.
-
-# ----------------------------------------------------------------------------
-# Per-cluster timelines: NDVI / NDWI side by side. Independent y-scales —
-# NDVI and NDWI are different physical units, same reasoning as the
-# Actual_Drop heatmap in 05 (what matters is each index's own trajectory
-# shape, not whether the raw values line up numerically).
-# ----------------------------------------------------------------------------
-build_timeline_panel <- function(res) {
-  cat(sprintf("Loading %s matrix for per-cluster timelines...\n", res$cfg$label))
-  mat <- readRDS(res$cfg$mat_path)
-  d   <- res$d
-  col_dates <- as.Date(colnames(mat))
-
-  timeline_list <- vector("list", K)
-  for (k in seq_len(K)) {
-    idx <- d$pixel_id[d$cluster == k]
-    sub <- mat[idx, , drop = FALSE]
-    monthly <- data.frame(date = col_dates,
-                          value = colMeans(sub, na.rm = TRUE),
-                          cluster = factor(k))
-    timeline_list[[k]] <- monthly |>
-      mutate(year  = as.integer(format(date, "%Y")),
-             month = as.integer(format(date, "%m"))) |>
-      filter(month %in% 3:11) |>       # growing season only (Mar–Nov)
-      group_by(cluster, year) |>
-      summarise(value = mean(value, na.rm = TRUE), .groups = "drop")
-  }
-  timelines <- bind_rows(timeline_list)
-
-  ggplot(timelines, aes(x = year, y = value, color = cluster)) +
-    geom_line(linewidth = 0.8) +
-    geom_point(size = 1.5) +
-    scale_color_manual(values = cluster_cols, name = "Stress level",
-                       labels = clust_labels) +
-    geom_vline(xintercept = 2012, linetype = "dashed",
-               color = "grey40", linewidth = 0.4) +
-    geom_vline(xintercept = 2015, linetype = "dashed",
-               color = "grey40", linewidth = 0.4) +
-    annotate("text", x = 2012.2, y = Inf, label = "Drought onset",
-             hjust = 0, vjust = 1.5, size = 2.8, color = "grey40") +
-    annotate("text", x = 2015.2, y = Inf, label = "Peak mortality",
-             hjust = 0, vjust = 1.5, size = 2.8, color = "grey40") +
-    labs(
-      title = res$cfg$label,
-      x = NULL, y = sprintf("Annual Mean %s", res$cfg$label)
-    ) +
-    theme_bw() +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-}
-
-p_ts <- combine_panels(lapply(INDICES, function(idx) build_timeline_panel(results[[idx]]))) +
-  plot_annotation(
-    title = "Annual Mean Trajectory by Cluster (2000-2016)",
-    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-  )
-
-ggsave("pixel_approach/charts/cluster_timelines.pdf",
-       plot = p_ts, width = 7 * n_idx, height = 5, dpi = 150)
-cat("✓ Saved: pixel_approach/charts/cluster_timelines.pdf\n")
 
 # # ----------------------------------------------------------------------------
 # # ANOVA + Tukey HSD on each index's own actual-drop column by cluster.
