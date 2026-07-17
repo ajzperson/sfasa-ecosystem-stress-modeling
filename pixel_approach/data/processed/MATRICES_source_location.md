@@ -1,5 +1,3 @@
-[ndvi_matrix.rds (Google Drive)](https://drive.google.com/file/d/1Y7MJdlHKBsoD7kcxoy6qEECEIMRPk3QE/view?usp=drive_link)
+All `.rds` files in `pixel_approach/data/processed/` (too large for git) are stored here:
 
-[vpd_matrix.rds (Google Drive)](https://drive.google.com/file/d/1FtSYlQ7qqAAPMrW32QIXSOoaSjQkuUHj/view?usp=drive_link)
-
-[ppt_matrix.rds (Google Drive)](https://drive.google.com/file/d/1SO-TE_6K_Up50PA04Zi7XmO1L0vJMtis/view?usp=drive_link)
+[sfasa-project matrices (Google Drive folder)](https://drive.google.com/drive/folders/1wzwGAy1skwy-V5iPSbX7Z3KE3hzsR7Mb)
