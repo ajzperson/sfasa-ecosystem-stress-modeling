@@ -9,6 +9,7 @@ data_common/raw/fire_perimeters/*.gpkg
 data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb/
 data_common/raw/lcmap/*.tif
 data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip
+data_common/raw/forest_damage/IDS_FlatFiles_Readme.pdf
 data_common/raw/prism/prismz.zip
 data_common/raw/prism/prismz/
 data_common/raw/ecoregion/us_eco_l3/
