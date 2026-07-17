@@ -14,6 +14,13 @@ $$Y_t = T_t + S_t + \epsilon_t$$
 | Seasonal | $S_t$ | Repeating annual cycle |
 | Residual | $\epsilon_t$ | Month-by-month anomalies |
 
+**Learn more:**
+- [fpp2, 6.6 STL decomposition](https://otexts.com/fpp2/stl.html) — base-R `stl()` tutorial with a worked example and plot
+- [GeeksforGeeks: STL Decomposition of Time Series Using R](https://www.geeksforgeeks.org/machine-learning/stl-decomposition-of-time-series-using-r/) — R tutorial using the AirPassengers dataset
+- [Video: "6.14: STL decomposition of a time series (with example in R)"](https://www.youtube.com/watch?v=mk0j1w1DsZM)
+- R's own `?stl` help page — precise reference for every parameter
+- [Cleveland, Cleveland, McRae & Terpenning (1990), "STL: A Seasonal-Trend Decomposition Procedure Based on Loess," *Journal of Official Statistics*, 6(1), 3-73](https://www.scb.se/contentassets/ca21efb41fee47d293bbee5bf7be7fb3/stl-a-seasonal-trend-decomposition-procedure-based-on-loess.pdf) — the original paper; algorithm definition plus real worked numeric examples (also mirrored [here](https://www.math.unm.edu/~lil/Stat581/STL.pdf))
+
 ---
 
 ### Why we use it
@@ -49,28 +56,28 @@ Controls how the seasonal component is estimated:
 
 ---
 
-Because `s.window = "periodic"`, the seasonal component is the **mean of each month slot across all years**:
+Because `s.window = "periodic"`, the seasonal component is the **mean of each month's detrended values across all years** — the trend estimate is subtracted from each year's raw value for that month *first*, then those detrended values are averaged (verified numerically against real `stl()` output: mean-of-detrended matches the actual seasonal value to 5-6 significant figures, with a tiny residual from STL's iterative refinement):
 
-- Typical January = mean of all Januaries
-- Typical February = mean of all Februaries
+- Typical January = mean of all Januaries' detrended values
+- Typical February = mean of all Februaries' detrended values
 - ...
-- Typical December = mean of all Decembers
+- Typical December = mean of all Decembers' detrended values
 
-This gives 12 fixed values. STL then stamps the same pattern across all months in the series — every year looks identical in this panel. The wave never changes shape because `"periodic"` forces one fixed seasonal baseline for the entire series.
+This gives 12 fixed values, added back to the trend to reconstruct the fitted series. STL then stamps the same 12 values across all years — every year looks identical in this panel. The wave never changes shape because `"periodic"` forces one fixed seasonal baseline for the entire series.
 
-Illustrative example — "typical July" over a 15-year record (values here are made up for the math, not measured data):
+Illustrative example — "typical July" over a 15-year record, assuming a flat trend over this window (so detrended ≈ raw; values here are made up for the math, not measured data):
 
 | Year | Y1 | Y2 | Y3 | Y4 | Y5 | Y6 | Y7 | Y8 | Y9 | Y10 | Y11 | Y12 | Y13 | Y14 | Y15 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | July value | 0.60 | 0.62 | 0.61 | 0.63 | 0.65 | 0.64 | 0.63 | 0.62 | 0.60 | 0.58 | 0.59 | 0.57 | 0.55 | 0.53 | 0.50 |
 
-$$\text{Mean of all 15 Julies} = 0.595 \quad \leftarrow S_t \text{ for } \textbf{every} \text{ July in the chart, Y1 through Y15 alike}$$
+$$\text{Mean of all 15 Julies} = 0.595 \quad \leftarrow S_t \text{ for } \textbf{every} \text{ July in the chart, Y1 through Y15 alike (flat-trend case only)}$$
 
 ---
 
 ##### The math behind a numeric `s.window`
 
-With a number instead of `"periodic"`, the seasonal estimate for each year is built from a **local** loess smooth of that year's subseries (e.g., just the Julys) instead of a plain mean over all years — so nearby years count more than distant ones, using the same tricubic weighting idea as the trend panel below.
+With a number instead of `"periodic"`, the seasonal estimate for each year is built from a **local** loess smooth of that year's *detrended* subseries (e.g., just the Julys, trend already subtracted — same detrending step as `"periodic"` above) instead of a plain mean of the detrended values — so nearby years count more than distant ones, using the same tricubic weighting idea as the trend panel below.
 
 That local smooth is not the final answer, though: STL then runs it through an additional **low-pass filter** (two moving averages the length of one full year, then a length-3 moving average, then one more loess pass) and subtracts that filtered result back off, before the seasonal component is finalized. This extra step exists to strip out any long-term trend that leaked into the seasonal estimate — but it also means the *net* influence of a neighboring year on the final $S_t$ is not simply the tricubic weight from the first step alone.
 
@@ -503,93 +510,6 @@ Strong upward trend — most later observations are higher.
 cor.test(as.numeric(date), r1, method = "kendall")
 ```
 `as.numeric(date)` converts dates to days since 1970-01-01. The p-value tests whether $\tau$ is significantly different from 0.
-
----
-
-## One-Way ANOVA
-
-**Question:** do three or more groups have genuinely different means, or could the differences we see just be random noise?
-
-ANOVA (Analysis of Variance) compares variation **between** groups to variation **within** groups:
-
-$$F = \frac{\text{between-group variance}}{\text{within-group variance}} = \frac{MS_{between}}{MS_{within}}$$
-
-($MS$ = Mean Square — a sum of squares divided by its degrees of freedom, i.e. an average squared deviation.)
-
-If the groups really differ, the average distance between group means should be large relative to how spread out each group is internally. If the "groups" are really just random subsets of the same population, between-group and within-group variance should be about the same size, giving $F \approx 1$.
-
-**Illustrative example** — 3 groups, 3 observations each:
-
-| Group | Values | Mean |
-|---|---|---|
-| 1 | 0.10, 0.12, 0.14 | 0.12 |
-| 2 | 0.14, 0.15, 0.16 | 0.15 |
-| 3 | 0.20, 0.22, 0.24 | 0.22 |
-
-Grand mean = (0.12+0.15+0.22)/3 = 0.163
-
-**Between-group sum of squares** ($SS$ = Sum of Squares; each group's deviation from the grand mean, weighted by group size $n_k=3$):
-
-$$SS_{between} = 3(0.12-0.163)^2 + 3(0.15-0.163)^2 + 3(0.22-0.163)^2 = 0.00563+0.00053+0.00963 = 0.0158$$
-
-Degrees of freedom between = $k-1 = 3-1=2$, so $MS_{between} = 0.0158/2 = 0.0079$
-
-**Within-group sum of squares** (spread inside each group around its own mean — same squared-deviation idea as $SS_{between}$, just measured from each group's *own* mean instead of the grand mean):
-
-Group 1 (values 0.10, 0.12, 0.14; mean 0.12): $(0.10-0.12)^2+(0.12-0.12)^2+(0.14-0.12)^2 = 0.0004+0+0.0004 = 0.0008$
-
-Group 2 (values 0.14, 0.15, 0.16; mean 0.15): $(0.14-0.15)^2+(0.15-0.15)^2+(0.16-0.15)^2 = 0.0001+0+0.0001 = 0.0002$
-
-Group 3 (values 0.20, 0.22, 0.24; mean 0.22): $(0.20-0.22)^2+(0.22-0.22)^2+(0.24-0.22)^2 = 0.0004+0+0.0004 = 0.0008$
-
-$$SS_{within} = \underbrace{0.0008}_{\text{group 1}} + \underbrace{0.0002}_{\text{group 2}} + \underbrace{0.0008}_{\text{group 3}} = 0.0018$$
-
-Degrees of freedom within = $N-k = 9-3=6$ (9 total observations, minus 1 "used up" per group to compute that group's own mean), so $MS_{within} = 0.0018/6 = 0.0003$
-
-**F-statistic:**
-
-$$F = \frac{0.0079}{0.0003} \approx 26.3$$
-
-**Where the p-value comes from:** F follows a known probability distribution when there's truly no group difference (random noise only), shaped by two numbers, $df_{between}$ and $df_{within}$ — here 2 and 6. The p-value is the probability of landing at or beyond the observed F under that distribution.
-
-When $df_{between}=2$ (as it is here — always true for 3 groups, since $k-1=2$), that probability has a clean closed form:
-
-$$p = \left(\frac{df_{within}}{df_{within}+2F}\right)^{df_{within}/2}$$
-
-$$= \left(\frac{6}{6+2(26.33)}\right)^{3} = \left(\frac{6}{58.66}\right)^3 = (0.1023)^3 \approx 0.00107$$
-
-Verified: this hand formula gives 0.001070108, matching both R's `pf(26.33, 2, 6, lower.tail=FALSE)` and `aov()`'s reported p-value exactly.
-
-A large F means the between-group spread dwarfs the within-group spread — strong evidence the groups really differ. The p-value asks: *if there were actually no difference between groups, how likely is an F this large by chance alone?* A small p-value (< 0.05, conventionally) means: reject the "no difference" hypothesis.
-
-| F value | Interpretation |
-|---|---|
-| Close to 1 | Between-group variation ≈ within-group variation — groups probably don't really differ |
-| Much greater than 1 | Between-group variation dwarfs within-group — groups likely genuinely differ |
-
-**Caveat:** ANOVA's F-test only tells you *some* pair of groups differs — not *which* pair. That's what Tukey HSD (below) is for.
-
----
-
-## Tukey HSD (Honest Significant Difference)
-
-**Question:** ANOVA said *some* pair of groups differs — but which pair(s), specifically?
-
-If you had 3 groups and just ran 3 separate t-tests (1 vs 2, 2 vs 3, 1 vs 3), each test has its own ~5% chance of a false positive. Run enough pairwise tests and you're likely to find "significant" differences purely by chance — the **multiple comparisons problem**. Tukey HSD corrects for this: it controls the **family-wise error rate** (the chance of *any* false positive across *all* pairwise comparisons combined), not just each comparison individually.
-
-For each pair of group means, Tukey HSD computes:
-
-$$q = \frac{|\bar{y}_i - \bar{y}_j|}{SE}, \qquad SE = \sqrt{\frac{MS_{within}}{2}\left(\frac{1}{n_i}+\frac{1}{n_j}\right)}$$
-
-and compares $q$ to the **studentized range distribution** — a distribution calibrated for "the largest gap among $k$ group means," which is inherently wider than a single pairwise comparison's distribution, precisely because there are more chances to see a big gap by luck when comparing many pairs at once.
-
-**Illustrative example** — using the ANOVA numbers above ($MS_{within}=0.0003$, $n_i=n_j=3$ for every group):
-
-$$SE = \sqrt{\frac{0.0003}{2}\left(\frac{1}{3}+\frac{1}{3}\right)} = \sqrt{0.0003 \times \tfrac{1}{3}} = \sqrt{0.0001} = 0.01$$
-
-Group 1 vs Group 3: $|0.12-0.22| = 0.10 \to q = 0.10/0.01 = 10.0$ — compared against the studentized range critical value for $k=3$ groups and $df_{within}=6$ ($q_{crit} \approx 4.34$ at $\alpha=0.05$). Since $10.0 > 4.34$, this pair is significantly different.
-
-Tukey HSD returns, for every pair: the mean difference, a confidence interval, and an adjusted p-value — already corrected for testing multiple pairs, so the p-value can be read directly without further correction.
 
 ---
 

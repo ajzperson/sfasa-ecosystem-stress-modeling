@@ -163,3 +163,40 @@ test_that("NDWI formula computes correctly and QC-masks bad-quality cells", {
   expect_equal(vals[1], (0.3 - 0.1) / (0.3 + 0.1))
   expect_equal(vals[3], (0.2 - 0.1) / (0.2 + 0.1))
 })
+
+# ----------------------------------------------------------------------------
+# NDVI-specific logic from 01_extract_pixel_ndvi.R (VI_Quality QC masking) —
+# deliberately more lenient than NDWI's (accepts bits 0-1 <= 2, not == 0 only;
+# only bits 11 "not produced" are dropped; see that script's header comment
+# for why). Tested directly since it lives inline in that script, not in a
+# function.
+# ----------------------------------------------------------------------------
+
+test_that("VI_Quality bit-extraction (%% 4) matches real MOD13A1 values", {
+  # Real VI_Quality values observed in the actual raw NDVI file
+  # (data_common/raw/ndvi/MOD13A1.061_500m_aid0001.nc): 2116 = "good"
+  # (bits 00), 2061 = "produced, check other QA" (bits 01), 2062 = "most
+  # probably cloudy" (bits 10). 2119 extends the same pattern to bits 11
+  # (not independently confirmed against a real observed value, unlike the
+  # other three, but consistent with the documented bit-packing scheme).
+  expect_equal(2116 %% 4, 0)
+  expect_equal(2061 %% 4, 1)
+  expect_equal(2062 %% 4, 2)
+  expect_equal(2119 %% 4, 3)
+})
+
+test_that("NDVI QC mask keeps bits 00/01/10, drops bits 11", {
+  ndvi <- rast(nrows = 2, ncols = 2, xmin = 0, xmax = 2, ymin = 0, ymax = 2, crs = "EPSG:4326")
+  values(ndvi) <- c(0.5, 0.6, 0.7, 0.8)
+  qc <- rast(nrows = 2, ncols = 2, xmin = 0, xmax = 2, ymin = 0, ymax = 2, crs = "EPSG:4326")
+  values(qc) <- c(2116, 2061, 2062, 2119)  # good, check-QA, cloudy, not-produced
+
+  good_qc     <- qc %% 4 <= 2
+  ndvi_masked <- mask(ndvi, good_qc, maskvalue = FALSE)
+
+  vals <- values(ndvi_masked)[, 1]
+  expect_equal(vals[1], 0.5)   # good -- kept
+  expect_equal(vals[2], 0.6)   # check-other-QA -- kept
+  expect_equal(vals[3], 0.7)   # cloudy -- kept
+  expect_true(is.na(vals[4]))  # not-produced -- masked
+})

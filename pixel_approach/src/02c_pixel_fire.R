@@ -118,12 +118,12 @@ for (yr in as.character(VALIDATION_YEARS)) {
 
 # --------------------------------------------------------------------------
 # 3. Extract burned status at every pixel in the shared grid. Each 500m
-#    pixel covers roughly 17x17 of these 30m MTBS cells -- "any" of them at
-#    moderate+ severity flags the whole pixel, via a 250m buffer around its
-#    centroid (explicit buffer polygons, not extract()'s buffer= shorthand,
-#    which was verified to return the buffer width itself instead of
-#    aggregating raster values -- a real bug in how that argument behaves
-#    combined with fun= in this terra version).
+#    pixel covers roughly 17x17 of these 30m MTBS cells. A 250m-radius
+#    buffer is drawn around the pixel's centroid, and max() is taken over
+#    every 30m cell inside that circle -- if any of them is moderate+
+#    severity (3/4), the max is 3/4 and the whole pixel is flagged burned.
+#    Explicit buffer polygons via terra::buffer(), not a buffer= shortcut
+#    -- extract() has no such argument in this terra version.
 #
 #    Processed in batches: extract() over all ~252k points in a single call
 #    silently truncates partway through (verified -- the first ~70k rows

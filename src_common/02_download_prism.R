@@ -23,4 +23,3 @@ cat("Downloading maximum temperature data (2000-2026)...\n")
 get_prism_monthlys(type = "tmax", years = 2000:2026, keepZip = FALSE)
 
 cat("\n✓ PRISM data downloaded to data_common/raw/prism/prismz/\n")
-cat("  Next: Run 05_process_prism.R to extract Sierra Nevada values\n")
