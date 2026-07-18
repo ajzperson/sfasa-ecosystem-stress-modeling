@@ -103,7 +103,7 @@ results <- lapply(index_config, run_fire_validation, fire_flags = fire_flags)
 p_combined <- (results$ndvi$plot + results$ndwi$plot) +
   plot_annotation(
     title    = sprintf("MTBS Moderate+ Burn Severity by CSD Cluster (%s)", year_label),
-    subtitle = "% of pixels burned (severity >= moderate) after cluster assignment",
+    subtitle = "% of pixels burned (severity >= moderate) — ground-truth validation, after cluster assignment",
     theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold"),
                       plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))
   )
