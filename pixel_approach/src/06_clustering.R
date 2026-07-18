@@ -309,6 +309,7 @@ build_map_panel <- function(res) {
     scale_color_manual(values = cluster_cols, name = "Stress level",
                        labels = clust_labels) +
     coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
     labs(title = res$cfg$label, x = "Longitude", y = "Latitude",
          caption = "White gaps: pixels burned (MTBS moderate+ severity) at any point\n2000-2014, excluded before clustering") +
     guides(color = guide_legend(override.aes = list(size = 3, alpha = 1))) +
