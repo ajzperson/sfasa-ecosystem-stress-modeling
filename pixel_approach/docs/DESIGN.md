@@ -42,7 +42,28 @@ Every dataset below is resolved onto this same grid before use — everything in
   - `pixel_approach/data/processed/pixel_tree_mortality.csv`
 
 ## Generate per-pixel beetle mortality from "Forest Damage" in ["Raw Data Inventory"](../../docs_common/DATAPIPELINE.md#raw-data-inventory)
-- Filter USFS ADS damage polygons to Region 5, survey years 2015-2016, and bark-beetle DCA codes only (`11000, 11002, 11004, 11006, 11019, 11027, 11029, 11030, 11036, 11048, 11050, 11900`); clip to the Sierra Nevada boundary; spatial-join each pixel centroid to overlapping polygons (`st_intersects`), taking max `tpa` (trees per acre killed, from `LEGACY_TPA`) per pixel per year.
+- Filter USFS ADS damage polygons to Region 5, survey years 2015-2016, and bark-beetle DCA codes only (17 codes, see table below); clip to the Sierra Nevada boundary; spatial-join each pixel centroid to overlapping polygons (`st_intersects`), taking max `tpa` (trees per acre killed, from `LEGACY_TPA`) per pixel per year.
+
+| DCA_CODE | DCA_COMMON_NAME |
+|---|---|
+| 11000 | bark beetles |
+| 11002 | western pine beetle |
+| 11004 | Jeffrey pine beetle |
+| 11006 | mountain pine beetle |
+| 11007 | Douglas-fir beetle |
+| 11019 | pinyon ips |
+| 11027 | California fivespined ips |
+| 11029 | pine engraver |
+| 11030 | ips engraver beetles |
+| 11035 | cedar & cypress bark beetles |
+| 11036 | western cedar bark beetle |
+| 11039 | twig beetles |
+| 11041 | fir root bark beetle |
+| 11048 | true fir bark beetles |
+| 11049 | Douglas-fir engraver |
+| 11050 | fir engraver |
+| 11900 | unknown bark beetle |
+
 - `pixel_approach/src/02e_pixel_beetle.R` →
   - `pixel_approach/data/processed/pixel_beetle.csv`
 
@@ -126,6 +147,7 @@ Turns each pixel's CSD statistics into a stress tier (K-means), run independentl
 - `K = 3`
 - `SEED = 42`
 - `nstart = 25`, `iter.max = 100`
+- `INDICES = c("ndvi", "ndwi")` — which index/indices to cluster; run independently, once per index
 
 **Output:** `pixel_approach/src/06_clustering.R` →
 - `ndvi_pixel_clusters.csv`
@@ -222,3 +244,15 @@ Checks whether the stress-tier clusters (from `06`) line up with real LCMAP tree
 | `pixel_approach/src/11_dashboard.R` | `pixel_approach/charts/dashboard_ndvi.pdf`<br>`pixel_approach/charts/dashboard_ndwi.pdf` |
 | `pixel_approach/src/12_csd_rolling_timeline.R` | `pixel_approach/charts/cluster_csd_rolling_timeline.pdf` |
 | `pixel_approach/src/13_cluster_agreement_validation.R` | `pixel_approach/charts/cluster_agreement_validation.pdf`<br>`pixel_approach/charts/cluster_agreement_map.pdf` |
+
+---
+
+## Why SWE is used in the combined clustering but not the separate NDVI/NDWI clustering
+
+`03b_pixel_stl_csd_swe.R` adds SWE (snow water equivalent) as a third climate-correction predictor alongside VPD and PPT, on top of the same 2000–2011 baseline regression `03_pixel_stl_csd.R` already uses. SWE meaningfully improves the climate-correction fit for both NDVI and NDWI, by a comparable amount for each (adjusted R² rose from 0.35 to 0.48 for NDVI and from 0.39 to 0.48 for NDWI), and the SWE coefficient is statistically significant for the large majority of pixels (83% NDVI, 75% NDWI) even with VPD and PPT already in the model — not an artifact of adding a third predictor, and not lopsided toward one index.
+
+That improvement carries through cleanly to `06b_clustering_combined.R` (the 4-feature combined clustering): beetle mortality and MTBS fire exposure both still increase monotonically with stress rank, checked at both K=2 and K=4. It does not carry through cleanly to `06_clustering.R` (the 2-feature separate NDVI/NDWI clustering): with SWE-corrected input, NDWI's beetle validation and NDVI's fire validation both stopped increasing monotonically, with the middle cluster (of 3) dipping below the least-stressed cluster.
+
+The reason traces back to `tau_skew`. Across this whole pipeline, `tau_r1` (rising autocorrelation) is the feature that actually tracks real ground-truth damage; `tau_skew` carries little independent signal on its own — this was established from the combined clustering's PCA loadings, where both skew features loaded near zero while both r1 features loaded strongly and roughly equally. In the 2-feature separate clustering, `resid_tau_r1` and `neg_resid_tau_skew` get equal weight by construction (both z-scored before `kmeans()`), so when SWE reshapes the residual dynamics enough to shift `tau_skew`, an equal-weighted clustering can end up separating two groups mainly along the uninformative skew axis rather than the informative r1 axis — producing clusters that aren't really ordered by real stress, even though the labeling logic still ranks them as if they were. The 4-feature combined clustering doesn't have this failure mode the same way: NDVI's and NDWI's r1 features reinforce each other (a real, if weak, cross-index correlation), so the informative axis has more relative pull in the combined feature space than either index's own noisier skew feature does alone.
+
+So SWE is used in `06b` and not in `06`: it's a real, verified improvement to the climate correction itself, and the combined clustering is robust enough to benefit from it cleanly, but the separate clustering is not.

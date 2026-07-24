@@ -18,8 +18,9 @@ ALL_YEARS <- 2015:2016
 CACHE_DIR <- "pixel_approach/data/processed"
 
 bark_beetle_dca <- c(
-  11000, 11002, 11004, 11006, 11019, 11027,
-  11029, 11030, 11036, 11048, 11050, 11900
+  11000, 11002, 11004, 11006, 11007, 11019, 11027,
+  11029, 11030, 11035, 11036, 11039, 11041, 11048,
+  11049, 11050, 11900
 )
 
 gdb_zip <- "data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip"
@@ -37,7 +38,8 @@ beetle <- st_read(gdb_dir,
                   quiet = TRUE) |>
   filter(REGION_ID    == 5,
          SURVEY_YEAR  %in% ALL_YEARS,
-         DCA_CODE     %in% bark_beetle_dca) |>
+         DCA_CODE     %in% bark_beetle_dca,
+         DAMAGE_TYPE  == "Mortality") |>
   distinct(DAMAGE_AREA_ID, SURVEY_YEAR, .keep_all = TRUE) |>
   mutate(tpa = if_else(LEGACY_TPA <= 0, NA_real_, as.numeric(LEGACY_TPA))) |>
   st_transform(4326)

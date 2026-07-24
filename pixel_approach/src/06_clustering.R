@@ -56,16 +56,19 @@ if (!exists("INDICES")) INDICES <- c("ndvi", "ndwi")
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 
+if (!exists("NDVI_TAU_FILE")) NDVI_TAU_FILE <- "pixel_approach/data/processed/ndvi_pixel_tau.csv"
+if (!exists("NDWI_TAU_FILE")) NDWI_TAU_FILE <- "pixel_approach/data/processed/ndwi_pixel_tau.csv"
+
 index_config <- list(
   ndvi = list(
-    tau_path     = "pixel_approach/data/processed/ndvi_pixel_tau.csv",
+    tau_path     = NDVI_TAU_FILE,
     mat_path     = "pixel_approach/data/processed/ndvi_matrix.rds",
     # drop_col   = "Actual_Drop_15_16",  # deprioritized -- see 04_actual_drop.R (moved to deprecated/)
     clusters_out = "pixel_approach/data/processed/ndvi_pixel_clusters.csv",
     label        = "NDVI"
   ),
   ndwi = list(
-    tau_path     = "pixel_approach/data/processed/ndwi_pixel_tau.csv",
+    tau_path     = NDWI_TAU_FILE,
     mat_path     = "pixel_approach/data/processed/ndwi_matrix.rds",
     # drop_col   = "Actual_NDWI_Drop_15_16",  # deprioritized -- see 04_actual_drop.R (moved to deprecated/)
     clusters_out = "pixel_approach/data/processed/ndwi_pixel_clusters.csv",
@@ -173,7 +176,7 @@ run_clustering <- function(cfg, K, SEED) {
     wcss_vec[ki] <- km_i$tot.withinss
     sil_vec[ki]  <- mean(silhouette(km_i$cluster[sil_idx],
                                     dist(feat_sil))[, 3])
-    cat(sprintf("  k=%d  WCSS=%.1f  Silhouette=%.3f\n",
+    cat(sprintf("  k=%d  WCSS=%.1f  Silhouette=%.5f\n",
                 k_i, wcss_vec[ki], sil_vec[ki]))
     if (k_i == K) km_final <- km_i
   }
