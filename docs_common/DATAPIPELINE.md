@@ -27,7 +27,7 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
    USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS).
 9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(downloaded, superseded by MTBS, not currently used)*.
 10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity).
-11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm). Two layers: `LCPRI` (not currently used) + `LCACHG`.
+11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm). Two layers: `LCPRI` + `LCACHG` *(downloaded, not currently used — see below)*.
 
 ### Raw Data Inventory
 
@@ -43,7 +43,7 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 | Forest Damage | `data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip` (Google Drive, ~166 MB)<br>See [FOREST_DAMAGE_source_location.md](../data_common/raw/forest_damage/FOREST_DAMAGE_source_location.md) | [USDA Forest Service Detection Surveys](https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/detection-surveys)<br>Scroll to "R5 IDS DATA DOWNLOADS" section<br>Download "R5 CA All Years IDS Data (ZIP, 159 MB)"<br>[Direct URL](https://www.fs.usda.gov/foresthealth/docs/IDS_Data_for_Download/CONUS_Region5_AllYears.gdb.zip)<br>No login required | 1997–2025 · annual · 348,829 damage polygons (99.2% Region 5 California; 0.8% spillover from neighboring Regions 4/6) |
 | Fire Perimeters *(superseded by MTBS, unused)* | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg` (Google Drive, ~147 MB)<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
 | MTBS | `data_common/raw/mtbs/bsp_ugjds3epryqgif0ej5sb.zip` | [MTBS Burn Severity Direct Download](https://burnseverity.cr.usgs.gov/direct-download)<br>Click "MTBS" → select California → select years 2000-2019 (single multi-year request supported)<br>Request is processed asynchronously (~1 hour); download link sent via email | California, 2000–2019 · annual thematic burn severity mosaics · GeoTIFF · 30m |
-| LCMAP | `data_common/raw/lcmap/LCMAP_CU_20xx_V13_LCACHG.tif`<br>`data_common/raw/lcmap/LCMAP_CU_20xx_V13_LCPRI.tif`<br>See [LCMAP_source_location.md](../data_common/raw/lcmap/LCMAP_source_location.md) | [LCMAP Mosaic Download](https://eros.usgs.gov/lcmap/apps/data-downloads)<br>Layers: `LCPRI` (Primary Land Cover) + `LCACHG` (Annual Land Cover Change)<br>Years: 2015-2019 (5 years × 2 layers) | Full CONUS (clipped to Sierra Nevada after download) · annual · GeoTIFF · 30m |
+| LCMAP *(unused)* | `data_common/raw/lcmap/LCMAP_CU_20xx_V13_LCACHG.tif`<br>`data_common/raw/lcmap/LCMAP_CU_20xx_V13_LCPRI.tif`<br>See [LCMAP_source_location.md](../data_common/raw/lcmap/LCMAP_source_location.md) | [LCMAP Mosaic Download](https://eros.usgs.gov/lcmap/apps/data-downloads)<br>Layers: `LCPRI` (Primary Land Cover) + `LCACHG` (Annual Land Cover Change)<br>Years: 2015-2019 (5 years × 2 layers) | Full CONUS (clipped to Sierra Nevada after download) · annual · GeoTIFF · 30m |
 
 ---
 
@@ -120,10 +120,10 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 - [MTBS home](https://www.mtbs.gov/)
 - [MTBS Product Descriptions](https://www.mtbs.gov/product-descriptions)
 
-### LCMAP — Land Change Monitoring, Assessment, and Projection
+### LCMAP — Land Change Monitoring, Assessment, and Projection *(not currently used)*
 - **Variable:** `LCACHG` — its own two-digit code already encodes both the prior and current year's land cover class, so `LCPRI` isn't needed separately. Tree-cover loss = any value in {41, 42, 43, 45, 46, 47, 48} (prior class 4 = tree, per USGS LCMAP Data Format Control Book, LSDS-2074, Table 2-4).
 - **Why acquired:** an independent tree-cover-loss/mortality validation signal, alongside the bark beetle ADS data. LCMAP's CCDC algorithm is built from multi-band (green/red/NIR/SWIR) Landsat spectral time series with harmonic modeling and break detection — a genuinely different methodology from a vegetation-index (NDVI/NDWI) trend line, avoiding circularity between the collapse-detection method and its own validation data.
-- Only the 2015-2019 validation window is needed, unlike MTBS — land cover change during the 2000-2014 baseline isn't an unrelated confound the way fire is (it could plausibly be part of the resilience-loss signal itself), so there's no baseline-exclusion use case here.
+- **Why dropped:** CCDC's break detection is tuned to abrupt disturbance (fire, harvest), not the slow, gradual pre-tipping-point decline CSD is built to detect — a structural mismatch, not a data quality issue.
 
 **References**:
 - [USGS LCMAP Collection 1.3](https://www.usgs.gov/data/lcmap-land-cover-and-land-change-conterminous-us-collection-13)
