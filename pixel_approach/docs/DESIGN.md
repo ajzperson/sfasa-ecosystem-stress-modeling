@@ -136,7 +136,7 @@ Turns each pixel's CSD statistics into a stress tier (K-means), run independentl
 5. Flip sign: `neg_resid_tau_skew = -resid_tau_skew`, so higher = more stressed, consistent with `resid_tau_r1`'s convention.
 6. Z-score both features (`resid_tau_r1`, `neg_resid_tau_skew`).
 7. K-means sweep K=2-8 (elbow + silhouette, for the chart), then fit K-means at K=3 (the chosen value).
-8. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) - mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed.
+8. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) - mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed. Uses a raw composite here, not PC1 (contrast with the combined approach below): within a single index, `resid_tau_r1` and `resid_tau_skew` are nearly uncorrelated (NDVI: r=-0.01, NDWI: r=-0.08), so there's no cross-source conflict for PC1 to resolve.
 
 **Parameters:**
 - `K = 3`
@@ -192,7 +192,7 @@ Checks whether the stress-tier clusters (from `06`) line up with real MTBS burn 
 
 ## Cluster pixels into stress tiers, combined NDVI+NDWI
 
-Exploratory alternative to the per-index clustering above: instead of clustering NDVI and NDWI independently (2 features each), combines both indices' features into one 4-feature K-means clustering. Does not modify `06_clustering.R` or its outputs — a separate approach, run and compared alongside it.
+Exploratory alternative to the per-index clustering above: instead of clustering NDVI and NDWI independently (2 features each), combines both indices' features into one 4-feature K-means clustering.
 
 **Mechanism, step by step:**
 1. Load `tau_r1, tau_skew` for both NDVI and NDWI; inner-join on `pixel_id` (only pixels with a valid tau for both indices).

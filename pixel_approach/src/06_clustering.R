@@ -5,6 +5,8 @@ library(multcompView)
 library(ggsignif)
 library(cluster)
 
+source("pixel_approach/src/clustering_helpers.R")
+
 # K-means clustering on density-residualized tau_r1 + tau_skew, run
 # independently for NDVI and NDWI (not combined into one 4-feature
 # clustering) — the point is to cross-validate two independent stress
@@ -92,20 +94,9 @@ pixel_meta <- read_csv("pixel_approach/data/processed/pixel_metadata.csv", show_
 # Colors match heatmap convention: blue (rank 1, least stressed) -> red
 # (rank K, most stressed). Shared across both indices' charts since the
 # cluster labels (1..K, "no CSD".."full CSD") mean the same thing in both.
-cluster_cols <- setNames(
-  colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(K),
-  as.character(seq_len(K))
-)
-# rep(" - partial", K - 2) errors for K=1 (negative times); K=1 is
-# degenerate anyway (one cluster can't be both least and most stressed),
-# so it gets its own generic label rather than trying to force the
-# no-CSD/partial/full-CSD framing onto it.
-clust_labels <- if (K == 1) {
-  "1 - all"
-} else {
-  paste0(seq_len(K), c(" - no CSD", rep(" - partial", max(K - 2, 0)),
-                       " - full CSD"))
-}
+style        <- build_cluster_style(K)
+cluster_cols <- style$cols
+clust_labels <- style$labels
 
 # ----------------------------------------------------------------------------
 # Core clustering step: K-sweep, k-means at K, stress-rank relabeling, save
@@ -134,19 +125,12 @@ run_clustering <- function(cfg, K, SEED) {
   # Baseline vegetation density (mean pre-2015 level) -- tau_r1 and
   # tau_skew both correlate with how much forest a pixel has to begin
   # with, which otherwise leaks into cluster assignment (see header).
-  mat        <- readRDS(cfg$mat_path)
-  mat_dates  <- as.Date(colnames(mat))
-  base_level <- tibble(
-    pixel_id   = pixel_meta$pixel_id,
-    base_level = rowMeans(mat[, mat_dates < as.Date("2015-01-01")], na.rm = TRUE)
-  )
-  rm(mat); gc(verbose = FALSE)
-
+  base_level <- compute_base_level(cfg$mat_path, pixel_meta$pixel_id, "base_level")
   d <- d |> left_join(base_level, by = "pixel_id")
   stopifnot(!anyNA(d$base_level))
 
-  d$resid_tau_r1   <- resid(lm(tau_r1   ~ base_level, data = d))
-  d$resid_tau_skew <- resid(lm(tau_skew ~ base_level, data = d))
+  d <- residualize_tau(d, "tau_r1", "tau_skew", "base_level",
+                       "resid_tau_r1", "resid_tau_skew")
 
   # Scale features before clustering (Euclidean distance is scale-sensitive).
   # neg_resid_tau_skew flips sign so higher = more stressed, consistent
@@ -154,42 +138,13 @@ run_clustering <- function(cfg, K, SEED) {
   # tau_var).
   feat <- d |> transmute(resid_tau_r1, neg_resid_tau_skew = -resid_tau_skew) |> scale()
 
-  # --- K sweep - elbow + silhouette (K = 2 to 8) ---
+  # --- K sweep - elbow + silhouette (K = 2 to 8), then K-means at chosen K ---
   cat("Running K sweep (K=2 to 8) for elbow and silhouette plots...\n")
-  k_range  <- 2:8
-  wcss_vec <- numeric(length(k_range))
-  sil_vec  <- numeric(length(k_range))
+  sweep_res <- run_kmeans_sweep(feat, K, SEED)
+  sweep_df  <- sweep_res$sweep_df
 
-  # Subsample for silhouette (full distance matrix on 248k pixels is too large)
-  set.seed(SEED)
-  sil_idx  <- sample(nrow(feat), min(5000, nrow(feat)))
-  feat_sil <- feat[sil_idx, ]
-
-  # Captures the sweep's own fit at k_i == K (same feat/seed/nstart/iter.max
-  # as the "final" fit below, so it's deterministically identical) to avoid
-  # running kmeans() a second time for the same K.
-  km_final <- NULL
-  for (ki in seq_along(k_range)) {
-    k_i <- k_range[ki]
-    set.seed(SEED)
-    km_i <- kmeans(feat, centers = k_i, nstart = 25, iter.max = 100)
-    wcss_vec[ki] <- km_i$tot.withinss
-    sil_vec[ki]  <- mean(silhouette(km_i$cluster[sil_idx],
-                                    dist(feat_sil))[, 3])
-    cat(sprintf("  k=%d  WCSS=%.1f  Silhouette=%.5f\n",
-                k_i, wcss_vec[ki], sil_vec[ki]))
-    if (k_i == K) km_final <- km_i
-  }
-  sweep_df <- data.frame(k = k_range, wcss = wcss_vec, silhouette = sil_vec)
-
-  # --- K-means at chosen K ---
   cat(sprintf("Running k-means (k=%d, seed=%d)...\n", K, SEED))
-  if (is.null(km_final)) {
-    # K fell outside the swept 2:8 range, so it wasn't computed above
-    set.seed(SEED)
-    km_final <- kmeans(feat, centers = K, nstart = 25, iter.max = 100)
-  }
-  km <- km_final
+  km <- sweep_res$km_final
   d$cluster_raw <- km$cluster
 
   # Re-label clusters by composite stress rank so colors are semantically
@@ -259,32 +214,7 @@ n_idx <- length(INDICES)
 # K-sweep chart: elbow + silhouette per index, stacked (NDVI row, NDWI row)
 # ----------------------------------------------------------------------------
 build_k_sweep_row <- function(res, K) {
-  sweep_df <- res$sweep_df
-  k_range  <- sweep_df$k
-
-  p_elbow <- ggplot(sweep_df, aes(x = k, y = wcss)) +
-    geom_line(linewidth = 0.8) +
-    geom_point(size = 3) +
-    geom_point(data = sweep_df[sweep_df$k == K, ],
-               size = 5, shape = 21, fill = "#D73027", color = "black") +
-    scale_x_continuous(breaks = k_range) +
-    labs(title = sprintf("%s - Elbow Method", res$cfg$label),
-         x = "Number of clusters (K)", y = "Total within-cluster SS") +
-    theme_bw() +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-
-  p_sil <- ggplot(sweep_df, aes(x = k, y = silhouette)) +
-    geom_line(linewidth = 0.8) +
-    geom_point(size = 3) +
-    geom_point(data = sweep_df[sweep_df$k == K, ],
-               size = 5, shape = 21, fill = "#D73027", color = "black") +
-    scale_x_continuous(breaks = k_range) +
-    labs(title = sprintf("%s - Silhouette Score", res$cfg$label),
-         x = "Number of clusters (K)", y = "Mean silhouette width") +
-    theme_bw() +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-
-  p_elbow + p_sil
+  build_k_sweep_panel(res$sweep_df, K, res$cfg$label)
 }
 
 p_sweep <- combine_panels(
@@ -304,25 +234,7 @@ cat("\n✓ Saved: pixel_approach/charts/cluster_k_sweep.pdf\n")
 # Cluster map: NDVI / NDWI side by side, shared legend (same cluster labels)
 # ----------------------------------------------------------------------------
 build_map_panel <- function(res) {
-  d <- res$d
-  ggplot(d, aes(x = lon, y = lat, color = cluster)) +
-    geom_point(size = 0.05, alpha = 0.5) +
-    geom_sf(data = sn_boundary, fill = NA, color = "grey20",
-            linewidth = 0.4, inherit.aes = FALSE) +
-    scale_color_manual(values = cluster_cols, name = "Stress level",
-                       labels = clust_labels) +
-    coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
-    scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
-    labs(title = res$cfg$label, x = "Longitude", y = "Latitude",
-         caption = "White gaps: pixels burned (MTBS moderate+ severity) at any point\n2000-2014, excluded before clustering") +
-    guides(color = guide_legend(override.aes = list(size = 3, alpha = 1))) +
-    theme_bw() +
-    theme(
-      plot.title      = element_text(hjust = 0.5, face = "bold"),
-      plot.caption    = element_text(hjust = 0.5, color = "grey40", size = 8),
-      legend.position = "right",
-      axis.text       = element_text(size = 7)
-    )
+  build_cluster_map_panel(res$d, sn_boundary, cluster_cols, clust_labels, res$cfg$label)
 }
 
 map_panels <- setNames(lapply(INDICES, function(idx) build_map_panel(results[[idx]])), INDICES)

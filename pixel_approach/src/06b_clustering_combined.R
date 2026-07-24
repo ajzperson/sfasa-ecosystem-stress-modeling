@@ -3,6 +3,8 @@ library(sf)
 library(patchwork)
 library(cluster)
 
+source("pixel_approach/src/clustering_helpers.R")
+
 # Exploratory alternative to 06_clustering.R: instead of clustering NDVI and
 # NDWI independently (2 features each: density-residualized tau_r1 +
 # tau_skew), combines both indices' features into one 4-feature K-means
@@ -30,15 +32,9 @@ fire_flags <- read_csv("pixel_approach/data/processed/pixel_fire.csv", show_col_
 pixel_meta <- read_csv("pixel_approach/data/processed/pixel_metadata.csv", show_col_types = FALSE) |>
   select(pixel_id)
 
-cluster_cols <- setNames(
-  colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(K),
-  as.character(seq_len(K))
-)
-clust_labels <- if (K == 1) {
-  "1 - all"
-} else {
-  paste0(seq_len(K), c(" - no CSD", rep(" - partial", max(K - 2, 0)), " - full CSD"))
-}
+style        <- build_cluster_style(K)
+cluster_cols <- style$cols
+clust_labels <- style$labels
 
 cat(sprintf("Loading NDVI and NDWI tau outputs (%s, %s)...\n", NDVI_TAU_FILE, NDWI_TAU_FILE))
 ndvi_tau <- read_csv(NDVI_TAU_FILE, show_col_types = FALSE) |>
@@ -65,21 +61,10 @@ cat(sprintf("✓ Excluded %d pixels burned (MTBS moderate+) during 2000-2014 bas
             n_before - nrow(d), nrow(d)))
 
 cat("Computing baseline vegetation density (NDVI and NDWI, each against its own index)...\n")
-ndvi_mat   <- readRDS("pixel_approach/data/processed/ndvi_matrix.rds")
-ndvi_dates <- as.Date(colnames(ndvi_mat))
-base_level_ndvi <- tibble(
-  pixel_id        = pixel_meta$pixel_id,
-  base_level_ndvi = rowMeans(ndvi_mat[, ndvi_dates < as.Date("2015-01-01")], na.rm = TRUE)
-)
-rm(ndvi_mat); gc(verbose = FALSE)
-
-ndwi_mat   <- readRDS("pixel_approach/data/processed/ndwi_matrix.rds")
-ndwi_dates <- as.Date(colnames(ndwi_mat))
-base_level_ndwi <- tibble(
-  pixel_id        = pixel_meta$pixel_id,
-  base_level_ndwi = rowMeans(ndwi_mat[, ndwi_dates < as.Date("2015-01-01")], na.rm = TRUE)
-)
-rm(ndwi_mat); gc(verbose = FALSE)
+base_level_ndvi <- compute_base_level("pixel_approach/data/processed/ndvi_matrix.rds",
+                                      pixel_meta$pixel_id, "base_level_ndvi")
+base_level_ndwi <- compute_base_level("pixel_approach/data/processed/ndwi_matrix.rds",
+                                      pixel_meta$pixel_id, "base_level_ndwi")
 
 d <- d |>
   left_join(base_level_ndvi, by = "pixel_id") |>
@@ -88,10 +73,10 @@ stopifnot(!anyNA(d$base_level_ndvi), !anyNA(d$base_level_ndwi))
 
 # Each index's tau_r1/tau_skew residualized against its OWN baseline density
 # (not the other index's) -- same reasoning as 06_clustering.R, applied twice.
-d$resid_tau_r1_ndvi   <- resid(lm(tau_r1_ndvi   ~ base_level_ndvi, data = d))
-d$resid_tau_skew_ndvi <- resid(lm(tau_skew_ndvi ~ base_level_ndvi, data = d))
-d$resid_tau_r1_ndwi   <- resid(lm(tau_r1_ndwi   ~ base_level_ndwi, data = d))
-d$resid_tau_skew_ndwi <- resid(lm(tau_skew_ndwi ~ base_level_ndwi, data = d))
+d <- residualize_tau(d, "tau_r1_ndvi", "tau_skew_ndvi", "base_level_ndvi",
+                     "resid_tau_r1_ndvi", "resid_tau_skew_ndvi")
+d <- residualize_tau(d, "tau_r1_ndwi", "tau_skew_ndwi", "base_level_ndwi",
+                     "resid_tau_r1_ndwi", "resid_tau_skew_ndwi")
 
 # Sign-flip both indices' skew residual so higher = more stressed, consistent
 # with resid_tau_r1's convention (same reasoning as 06_clustering.R).
@@ -103,32 +88,11 @@ feat <- d |>
   scale()
 
 cat("Running K sweep (K=2 to 8) for elbow and silhouette plots...\n")
-k_range  <- 2:8
-wcss_vec <- numeric(length(k_range))
-sil_vec  <- numeric(length(k_range))
-
-set.seed(SEED)
-sil_idx  <- sample(nrow(feat), min(5000, nrow(feat)))
-feat_sil <- feat[sil_idx, ]
-
-km_final <- NULL
-for (ki in seq_along(k_range)) {
-  k_i <- k_range[ki]
-  set.seed(SEED)
-  km_i <- kmeans(feat, centers = k_i, nstart = 25, iter.max = 100)
-  wcss_vec[ki] <- km_i$tot.withinss
-  sil_vec[ki]  <- mean(silhouette(km_i$cluster[sil_idx], dist(feat_sil))[, 3])
-  cat(sprintf("  k=%d  WCSS=%.1f  Silhouette=%.5f\n", k_i, wcss_vec[ki], sil_vec[ki]))
-  if (k_i == K) km_final <- km_i
-}
-sweep_df <- data.frame(k = k_range, wcss = wcss_vec, silhouette = sil_vec)
+sweep_res <- run_kmeans_sweep(feat, K, SEED)
+sweep_df  <- sweep_res$sweep_df
 
 cat(sprintf("Running k-means (k=%d, seed=%d) on combined 4-feature space...\n", K, SEED))
-if (is.null(km_final)) {
-  set.seed(SEED)
-  km_final <- kmeans(feat, centers = K, nstart = 25, iter.max = 100)
-}
-km <- km_final
+km <- sweep_res$km_final
 d$cluster_raw <- km$cluster
 
 # Composite/stress-rank score: first principal component of the same 4
@@ -164,25 +128,7 @@ write_csv(d, "pixel_approach/data/processed/combined_pixel_clusters.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_clusters.csv\n")
 
 # --- K-sweep chart ---
-p_elbow <- ggplot(sweep_df, aes(x = k, y = wcss)) +
-  geom_line(linewidth = 0.8) +
-  geom_point(size = 3) +
-  geom_point(data = sweep_df[sweep_df$k == K, ], size = 5, shape = 21, fill = "#D73027", color = "black") +
-  scale_x_continuous(breaks = k_range) +
-  labs(title = "Combined (NDVI+NDWI) - Elbow Method", x = "Number of clusters (K)", y = "Total within-cluster SS") +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-
-p_sil <- ggplot(sweep_df, aes(x = k, y = silhouette)) +
-  geom_line(linewidth = 0.8) +
-  geom_point(size = 3) +
-  geom_point(data = sweep_df[sweep_df$k == K, ], size = 5, shape = 21, fill = "#D73027", color = "black") +
-  scale_x_continuous(breaks = k_range) +
-  labs(title = "Combined (NDVI+NDWI) - Silhouette Score", x = "Number of clusters (K)", y = "Mean silhouette width") +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-
-p_sweep <- (p_elbow + p_sil) +
+p_sweep <- build_k_sweep_panel(sweep_df, K, "Combined (NDVI+NDWI)") +
   plot_annotation(
     title = sprintf("K-means Hyperparameter Sweep (K = 2-8), Combined NDVI+NDWI Features; selected K = %d shown in red", K),
     theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
@@ -192,23 +138,10 @@ ggsave("pixel_approach/charts/combined_cluster_k_sweep.pdf", plot = p_sweep, wid
 cat("✓ Saved: pixel_approach/charts/combined_cluster_k_sweep.pdf\n")
 
 # --- Cluster map ---
-p_map <- ggplot(d, aes(x = lon, y = lat, color = cluster)) +
-  geom_point(size = 0.05, alpha = 0.5) +
-  geom_sf(data = sn_boundary, fill = NA, color = "grey20", linewidth = 0.4, inherit.aes = FALSE) +
-  scale_color_manual(values = cluster_cols, name = "Stress level", labels = clust_labels) +
-  coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
-  labs(title = "Combined NDVI+NDWI Clustering (k=3) on 4 density-residualized features",
-       x = "Longitude", y = "Latitude",
-       caption = "White gaps: pixels burned (MTBS moderate+ severity) at any point\n2000-2014, excluded before clustering") +
-  guides(color = guide_legend(override.aes = list(size = 3, alpha = 1))) +
-  theme_bw() +
-  theme(
-    plot.title      = element_text(hjust = 0.5, face = "bold"),
-    plot.caption    = element_text(hjust = 0.5, color = "grey40", size = 8),
-    legend.position = "right",
-    axis.text       = element_text(size = 7)
-  )
+p_map <- build_cluster_map_panel(
+  d, sn_boundary, cluster_cols, clust_labels,
+  sprintf("Combined NDVI+NDWI Clustering (k=%d) on 4 density-residualized features", K)
+)
 
 ggsave("pixel_approach/charts/combined_cluster_map.pdf", plot = p_map, width = 7, height = 7, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_cluster_map.pdf\n")
