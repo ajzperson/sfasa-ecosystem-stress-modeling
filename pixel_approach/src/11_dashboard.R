@@ -2,11 +2,14 @@ library(tidyverse)
 library(sf)
 library(patchwork)
 
-# One-page-per-index summary: cluster map on top, the three real-world
-# validator bars (fire, LCMAP mortality, beetle) below it. Assembled from
-# panels saved by 06_clustering.R/09_fire_validation.R/10_lcmap_validation.R/
-# 08_beetle_validation.R -- run those four first (in any order; this script
-# only reads their saved outputs, it doesn't recompute anything itself).
+# One-page-per-index summary: cluster map on top, the two real-world
+# validator bars (fire, beetle) below it. LCMAP was dropped as a validator --
+# its detection method (Landsat break detection, tuned to abrupt disturbance)
+# doesn't match what CSD is built to detect (slow, gradual pre-tipping-point
+# decline); see DESIGN.md. Assembled from panels saved by
+# 06_clustering.R/09_fire_validation.R/08_beetle_validation.R -- run those
+# three first (in any order; this script only reads their saved outputs, it
+# doesn't recompute anything itself).
 #
 # The cluster map panel is rebuilt here directly from ndvi_pixel_clusters.csv/
 # ndwi_pixel_clusters.csv rather than loaded from a saved .rds -- a ggplot
@@ -62,12 +65,10 @@ build_dashboard <- function(cfg, idx) {
 
   fire_panel   <- readRDS(sprintf("pixel_approach/data/processed/panel_fire_%s.rds", idx)) +
     labs(title = "Fire (MTBS)")
-  lcmap_panel  <- readRDS(sprintf("pixel_approach/data/processed/panel_lcmap_%s.rds", idx)) +
-    labs(title = "Mortality (LCMAP)")
   beetle_panel <- readRDS(sprintf("pixel_approach/data/processed/panel_beetle_%s.rds", idx)) +
     labs(title = "Beetle (USFS ADS)")
 
-  p <- (map_panel) / (fire_panel | lcmap_panel | beetle_panel) +
+  p <- (map_panel) / (fire_panel | beetle_panel) +
     plot_layout(heights = c(2, 1)) +
     plot_annotation(
       title = sprintf("%s: Cluster Map + Real-World Validation Summary", cfg$label),

@@ -7,7 +7,9 @@ library(patchwork)
 # populations only overlap ~35% (Jaccard 0.22) -- this script splits all
 # pixels flagged cluster 3 by at least one index into three groups (NDVI-3
 # only, NDWI-3 only, both) and checks real-world 2015-2016 outcome rates
-# (fire, LCMAP tree-cover loss, beetle mortality) in each group. Pixels
+# (fire, beetle mortality) in each group. LCMAP was dropped as a validator --
+# its detection method doesn't match what CSD is built to detect; see
+# DESIGN.md. Pixels
 # flagged by neither index are dropped entirely -- not the question this
 # script asks. Also maps the three groups spatially, to check whether
 # disagreement is scattered (index-specific noise) or geographically
@@ -32,21 +34,18 @@ year_cols <- sprintf("burned_%d", VALIDATION_YEARS)
 fire$burned_validation <- rowSums(fire[year_cols]) > 0
 fire <- fire |> select(pixel_id, burned_validation)
 
-# LCMAP/beetle validation flags were built per-index (each excludes that
-# index's own burned-baseline pixels), but the flags themselves are a
-# property of the pixel/outcome, not the index -- NDVI's and NDWI's copies
-# agree on every shared pixel_id. Using NDVI's copy here is arbitrary but
-# harmless; the alternative (avg of both) would be the same wherever it
-# matters (any pixel in this analysis is in the shared-pixel population).
-lcmap  <- read_csv("pixel_approach/data/processed/pixel_lcmap_ndvi.csv", show_col_types = FALSE) |>
-  select(pixel_id, lost_tree_cover_15_16)
+# Beetle validation flags were built per-index (each excludes that index's
+# own burned-baseline pixels), but the flags themselves are a property of
+# the pixel/outcome, not the index -- NDVI's and NDWI's copies agree on
+# every shared pixel_id. Using NDVI's copy here is arbitrary but harmless;
+# the alternative (avg of both) would be the same wherever it matters (any
+# pixel in this analysis is in the shared-pixel population).
 beetle <- read_csv("pixel_approach/data/processed/pixel_beetle_tpa_ndvi.csv", show_col_types = FALSE) |>
   select(pixel_id, any_mortality)
 
 joined <- ndvi |>
   inner_join(ndwi, by = "pixel_id") |>
   left_join(fire, by = "pixel_id") |>
-  left_join(lcmap, by = "pixel_id") |>
   left_join(beetle, by = "pixel_id") |>
   mutate(group = case_when(
     cluster_ndvi == 3 & cluster_ndwi == 3 ~ "Both",
@@ -63,7 +62,6 @@ summary_tbl <- joined |>
   summarise(
     n             = n(),
     Fire          = 100 * mean(burned_validation, na.rm = TRUE),
-    Mortality     = 100 * mean(lost_tree_cover_15_16, na.rm = TRUE),
     Beetle        = 100 * mean(any_mortality, na.rm = TRUE),
     .groups = "drop"
   ) |>
@@ -74,10 +72,10 @@ cat("=== Cluster-3 agreement vs. real-world validation rates ===\n")
 print(summary_tbl)
 
 plot_df <- summary_tbl |>
-  pivot_longer(cols = c(Fire, Mortality, Beetle), names_to = "validator", values_to = "pct") |>
-  mutate(validator = factor(validator, levels = c("Fire", "Mortality", "Beetle")))
+  pivot_longer(cols = c(Fire, Beetle), names_to = "validator", values_to = "pct") |>
+  mutate(validator = factor(validator, levels = c("Fire", "Beetle")))
 
-validator_cols <- c(Fire = "#E41A1C", Mortality = "#377EB8", Beetle = "#4DAF4A")
+validator_cols <- c(Fire = "#E41A1C", Beetle = "#4DAF4A")
 
 group_n <- setNames(summary_tbl$n, as.character(summary_tbl$group))
 group_x_labels <- sprintf("%s\n(n=%s)", group_order, format(group_n[group_order], big.mark = ","))
