@@ -36,13 +36,8 @@ Every dataset below is resolved onto this same grid before use — everything in
   - `pixel_approach/data/processed/mtbs_severity_2018.tif`
   - `pixel_approach/data/processed/mtbs_severity_2019.tif`
 
-## Generate per-pixel tree-cover loss from "LCMAP" in ["Raw Data Inventory"](../../docs_common/DATAPIPELINE.md#raw-data-inventory)
-- Reclassify LCACHG to binary tree-loss codes, aggregate 30m cells into each 500m pixel via a 250m-radius buffer max, kept as separate per-year columns (2015-2019).
-- `pixel_approach/src/02d_pixel_tree_mortality.R` →
-  - `pixel_approach/data/processed/pixel_tree_mortality.csv`
-
 ## Generate per-pixel beetle mortality from "Forest Damage" in ["Raw Data Inventory"](../../docs_common/DATAPIPELINE.md#raw-data-inventory)
-- Filter USFS ADS damage polygons to Region 5, survey years 2015-2016, and bark-beetle DCA codes only (17 codes, see table below); clip to the Sierra Nevada boundary; spatial-join each pixel centroid to overlapping polygons (`st_intersects`), taking max `tpa` (trees per acre killed, from `LEGACY_TPA`) per pixel per year.
+- Filter USFS ADS damage polygons to Region 5, survey years 2015-2016, `DAMAGE_TYPE == "Mortality"`, and bark-beetle DCA codes only (17 codes, see table below); clip to the Sierra Nevada boundary; spatial-join each pixel centroid to overlapping polygons (`st_intersects`), taking max `tpa` (trees per acre killed, from `LEGACY_TPA`) per pixel per year.
 
 | DCA_CODE | DCA_COMMON_NAME |
 |---|---|
@@ -189,27 +184,56 @@ Checks whether the stress-tier clusters (from `06`) line up with real MTBS burn 
 - `panel_fire_ndvi.rds` (saved plot panel, read by `11_dashboard.R`)
 - `panel_fire_ndwi.rds` (saved plot panel, read by `11_dashboard.R`)
 
-## Validate clusters against tree-cover loss (2015-2016)
-
-Checks whether the stress-tier clusters (from `06`) line up with real LCMAP tree-cover-loss transitions — an independent mortality signal using a different detection method (Landsat spectral break detection) than beetle (aerial survey) or fire (burn severity mapping).
-
-**Mechanism, step by step** (index = NDVI or NDWI, run independently for each):
-1. A pixel counts as having tree-cover loss if LCMAP recorded a loss transition in 2015 or 2016.
-2. For each cluster, compute the % of its pixels with loss — the validation question: do more-stressed clusters really show more real-world mortality?
-3. Plot that percentage by cluster.
-
-**Output:** `pixel_approach/src/10_lcmap_validation.R` →
-- `lcmap_by_cluster.pdf`
-- `pixel_lcmap_ndvi.csv`
-- `pixel_lcmap_ndwi.csv`
-- `panel_lcmap_ndvi.rds` (saved plot panel, read by `11_dashboard.R`)
-- `panel_lcmap_ndwi.rds` (saved plot panel, read by `11_dashboard.R`)
-
 ## Assemble a one-page validation summary per index
-- Combine the cluster map with the fire/mortality/beetle bar panels into a single page.
+- Combine the cluster map with the fire/beetle bar panels into a single page.
 - `pixel_approach/src/11_dashboard.R` →
   - `dashboard_ndvi.pdf`
   - `dashboard_ndwi.pdf`
+
+## Cluster pixels into stress tiers, combined NDVI+NDWI
+
+Exploratory alternative to the per-index clustering above: instead of clustering NDVI and NDWI independently (2 features each), combines both indices' features into one 4-feature K-means clustering. Does not modify `06_clustering.R` or its outputs — a separate approach, run and compared alongside it.
+
+**Mechanism, step by step:**
+1. Load `tau_r1, tau_skew` for both NDVI and NDWI; inner-join on `pixel_id` (only pixels with a valid tau for both indices).
+2. Exclude pixels burned (MTBS moderate+) at any point 2000-2014, same as `06`.
+3. Compute `base_level_ndvi`, `base_level_ndwi` per pixel: mean value over 2000–2014, each index against its own matrix.
+4. Residualize each index's `tau_r1`/`tau_skew` against its own `base_level` (not the other index's) — same reasoning as `06`, applied twice.
+5. Flip sign on both skew residuals so higher = more stressed.
+6. Z-score all 4 features, K-means sweep K=2-8, fit K-means at the chosen K.
+7. Relabel clusters by stress rank using PC1 of the same 4 z-scored features (not a raw unweighted sum) — NDVI's and NDWI's features are only weakly correlated (r1: r=0.20; skew: r=-0.15), so an unweighted sum isn't a well-supported way to combine them; PC1 lets the shared-variance structure set each feature's weight instead.
+
+**Parameters:**
+- `K = 4`, `SEED = 42`, `nstart = 25`, `iter.max = 100`
+
+**Output:** `pixel_approach/src/06b_clustering_combined.R` →
+- `combined_pixel_clusters.csv`
+- `combined_cluster_profile.csv`
+- `combined_cluster_k_sweep.pdf`
+- `combined_cluster_map.pdf`
+
+## Validate combined clusters against beetle mortality (2015-2016)
+
+Same role as `08_beetle_validation.R`, but for the combined clustering — one cluster assignment per pixel, so one chart, not two panels.
+
+**Output:** `pixel_approach/src/08b_beetle_validation_combined.R` →
+- `combined_beetle_tpa_by_cluster.pdf`
+- `combined_pixel_beetle_tpa.csv`
+- `panel_beetle_combined.rds` (saved plot panel, read by `11b_dashboard_combined.R`)
+
+## Validate combined clusters against fire exposure (2015-2016)
+
+Same role as `09_fire_validation.R`, but for the combined clustering.
+
+**Output:** `pixel_approach/src/09b_fire_validation_combined.R` →
+- `combined_fire_by_cluster.pdf`
+- `combined_pixel_fire.csv`
+- `panel_fire_combined.rds` (saved plot panel, read by `11b_dashboard_combined.R`)
+
+## Assemble a one-page validation summary, combined
+- Same role as `11_dashboard.R`, but for the combined clustering — one cluster assignment per pixel, so one output file, not two.
+- `pixel_approach/src/11b_dashboard_combined.R` →
+  - `dashboard_combined.pdf`
 
 ## Trace CSD statistics over time, by cluster
 - Reconstruct each pixel's climate-corrected residual from saved STL/climate coefficients, average the rolling level/r1/skew trajectories within each cluster (2005–2014) to see whether the trend predates the 2012 drought onset.
@@ -233,7 +257,6 @@ Checks whether the stress-tier clusters (from `06`) line up with real LCMAP tree
 | `pixel_approach/src/02a_pixel_vpd.R` | `pixel_approach/data/processed/vpd_matrix.rds` |
 | `pixel_approach/src/02b_pixel_ppt.R` | `pixel_approach/data/processed/ppt_matrix.rds` |
 | `pixel_approach/src/02c_pixel_fire.R` | `pixel_approach/data/processed/pixel_fire.csv`<br>`pixel_approach/data/processed/mtbs_baseline_severity.tif`<br>`pixel_approach/data/processed/mtbs_severity_2015.tif`<br>`pixel_approach/data/processed/mtbs_severity_2016.tif`<br>`pixel_approach/data/processed/mtbs_severity_2017.tif`<br>`pixel_approach/data/processed/mtbs_severity_2018.tif`<br>`pixel_approach/data/processed/mtbs_severity_2019.tif` |
-| `pixel_approach/src/02d_pixel_tree_mortality.R` | `pixel_approach/data/processed/pixel_tree_mortality.csv` |
 | `pixel_approach/src/02e_pixel_beetle.R` | `pixel_approach/data/processed/pixel_beetle.csv` |
 | `pixel_approach/src/03_pixel_stl_csd.R` | `pixel_approach/data/processed/ndvi_pixel_tau.csv`<br>`pixel_approach/data/processed/ndwi_pixel_tau.csv`<br>`pixel_approach/data/processed/ndvi_rolling_r1.rds`<br>`pixel_approach/data/processed/ndvi_rolling_var.rds`<br>`pixel_approach/data/processed/ndvi_rolling_skew.rds`<br>`pixel_approach/data/processed/ndwi_rolling_r1.rds`<br>`pixel_approach/data/processed/ndwi_rolling_var.rds`<br>`pixel_approach/data/processed/ndwi_rolling_skew.rds` |
 | `pixel_approach/src/05_heatmaps.R` | `pixel_approach/charts/heatmap_tau_r1.pdf`<br>`pixel_approach/charts/heatmap_tau_var.pdf`<br>`pixel_approach/charts/heatmap_tau_skew.pdf` |

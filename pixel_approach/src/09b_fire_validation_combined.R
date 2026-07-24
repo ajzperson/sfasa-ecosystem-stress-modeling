@@ -8,6 +8,7 @@ library(tidyverse)
 # Output:
 #   pixel_approach/charts/combined_fire_by_cluster.pdf
 #   pixel_approach/data/processed/combined_pixel_fire.csv
+#   pixel_approach/data/processed/panel_fire_combined.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
@@ -73,3 +74,8 @@ p_fire <- ggplot(zonal, aes(x = factor(cluster), y = pct_burned_validation,
 
 ggsave("pixel_approach/charts/combined_fire_by_cluster.pdf", plot = p_fire, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_fire_by_cluster.pdf\n")
+
+# Saved separately so 11b_dashboard_combined.R can assemble a one-page
+# summary without duplicating this plotting code.
+saveRDS(p_fire, "pixel_approach/data/processed/panel_fire_combined.rds")
+cat("✓ Saved: pixel_approach/data/processed/panel_fire_combined.rds\n")

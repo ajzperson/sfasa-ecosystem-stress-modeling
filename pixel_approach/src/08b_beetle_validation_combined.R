@@ -9,6 +9,7 @@ library(tidyverse)
 # Output:
 #   pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf
 #   pixel_approach/data/processed/combined_pixel_beetle_tpa.csv
+#   pixel_approach/data/processed/panel_beetle_combined.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
@@ -76,3 +77,8 @@ p_tpa <- ggplot(zonal, aes(x = factor(cluster), y = pct_with_mortality,
 
 ggsave("pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf", plot = p_tpa, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf\n")
+
+# Saved separately so 11b_dashboard_combined.R can assemble a one-page
+# summary without duplicating this plotting code.
+saveRDS(p_tpa, "pixel_approach/data/processed/panel_beetle_combined.rds")
+cat("✓ Saved: pixel_approach/data/processed/panel_beetle_combined.rds\n")
