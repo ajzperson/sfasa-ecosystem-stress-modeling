@@ -243,6 +243,17 @@ Same role as `09_fire_validation.R`, but for the combined clustering.
   - `cluster_agreement_validation.pdf`
   - `cluster_agreement_map.pdf`
 
+## Compare the combined clustering's most-stressed group against NDVI/NDWI's independent agreement
+
+Tests whether the combined 4-feature clustering (`06b`) is rediscovering the same pixels a much simpler two-index agreement check (`13`) already finds, or flagging a genuinely different set — and where they disagree, which one is more predictive of real damage.
+
+- Group A: pixels in the combined clustering's top stress cluster. Group B: pixels where NDVI-alone and NDWI-alone's independent clusterings both separately landed on "full CSD" (the "Both" group from `13`).
+- Overlap is moderate, not high or low (Jaccard = 0.245) — the two methods agree on about a quarter of what each flags as most-stressed.
+- Real-world 2015-2016 damage rates are cleanly ordered: pixels flagged by neither method (19.6% beetle mortality, 2.5% fire) < flagged by one method only (~22-23% beetle, ~2.9% fire, with "combined only" and "agreement only" performing about equally) < flagged by both methods (25.9% beetle, 4.4% fire). Agreement between the two independently-built methods is the strongest signal; in the disagreement zone, neither method is clearly better than the other.
+- `pixel_approach/src/14_combined_vs_agreement.R` →
+  - `combined_vs_agreement.pdf`
+  - `combined_vs_agreement.csv`
+
 ---
 
 ## Script Outputs
@@ -267,3 +278,4 @@ Same role as `09_fire_validation.R`, but for the combined clustering.
 | `pixel_approach/src/11b_dashboard_combined.R` | `pixel_approach/charts/dashboard_combined.pdf` |
 | `pixel_approach/src/12_csd_rolling_timeline.R` | `pixel_approach/charts/cluster_csd_rolling_timeline.pdf` |
 | `pixel_approach/src/13_cluster_agreement_validation.R` | `pixel_approach/charts/cluster_agreement_validation.pdf`<br>`pixel_approach/charts/cluster_agreement_map.pdf` |
+| `pixel_approach/src/14_combined_vs_agreement.R` | `pixel_approach/charts/combined_vs_agreement.pdf`<br>`pixel_approach/data/processed/combined_vs_agreement.csv` |

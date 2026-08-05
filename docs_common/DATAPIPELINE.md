@@ -1,5 +1,5 @@
 # SFASA Project
-**Using Time-Series Statistics ~~and Deep Neural Networks~~ to Predict Ecosystem Collapse**
+**Using Time-Series Statistics to Predict Ecosystem Collapse**
 
 Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 
@@ -14,8 +14,8 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 
 ## Data Source
 
-1. **EPA Boundary** — EPA Level III Ecoregions shapefile (full continental US).<br>
-   EPA = Environmental Protection Agency (the U.S. federal agency).<br>
+1. **EPA Boundary** — EPA Level III Ecoregions shapefile (full continental US)<br>
+   EPA = Environmental Protection Agency (the U.S. federal agency)<br>
    Used to generate the Sierra Nevada ecoregion polygon (spatial framework/mask that every raw dataset gets clipped/extracted to).
 2. **Kaggle** — California Wildfire Incidents (downloaded, not currently used)
 3. **VPD** — Vapor Pressure Deficit (TerraClimate)
@@ -24,10 +24,10 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 6. **NDWI** — Normalized Difference Water Index (NASA MODIS)
 7. **SWE** — Snow Water Equivalent (TerraClimate) *(downloaded, not currently used)*
 8. **USFS IDS** — Forest Damage / Tree Mortality (Insect and Disease Survey)<br>
-   USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS).
-9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(downloaded, superseded by MTBS, not currently used)*.
-10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity).
-11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm). Two layers: `LCPRI` + `LCACHG` *(downloaded, not currently used — see below)*.
+   USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS)
+9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(downloaded, superseded by MTBS, not currently used)*
+10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity)
+11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm). Two layers: `LCPRI` + `LCACHG` *(downloaded, not currently used — see below)*
 
 ### Raw Data Inventory
 
@@ -134,4 +134,4 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 ## Tech Stack
 - **Language:** R
 - **Key packages:** see `src_common/packages.R`
-- **Notebooks:** R Markdown (`.Rmd`) in RStudio
+
