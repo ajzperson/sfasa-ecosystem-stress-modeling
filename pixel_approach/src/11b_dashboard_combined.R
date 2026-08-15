@@ -2,11 +2,13 @@ library(tidyverse)
 library(sf)
 library(patchwork)
 
+source("pixel_approach/src/clustering_helpers.R")
+
 # One-page summary for the COMBINED (NDVI+NDWI 4-feature) clustering: cluster
-# map on top, the two real-world validator bars (fire, beetle) below it --
-# same role as 11_dashboard.R, but for the combined approach instead of
-# per-index. Only one cluster assignment per pixel now, so one output file,
-# not two. Assembled from panels saved by 06b_clustering_combined.R/
+# map beside the two real-world validator bars -- same role as
+# 11_dashboard.R, but for the combined approach instead of per-index. Only
+# one cluster assignment per pixel now, so one output file, not two.
+# Assembled from panels saved by 06b_clustering_combined.R/
 # 09b_fire_validation_combined.R/08b_beetle_validation_combined.R -- run
 # those three first (in any order; this script only reads their saved
 # outputs, it doesn't recompute anything itself).
@@ -27,15 +29,9 @@ clusters_path <- "pixel_approach/data/processed/combined_pixel_clusters.csv"
 pixels <- read_csv(clusters_path, show_col_types = FALSE)
 K <- max(pixels$cluster, na.rm = TRUE)
 
-cluster_cols <- setNames(
-  colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(K),
-  as.character(seq_len(K))
-)
-clust_labels <- if (K == 1) {
-  "1 - all"
-} else {
-  paste0(seq_len(K), c(" - no CSD", rep(" - partial", max(K - 2, 0)), " - full CSD"))
-}
+style        <- build_cluster_style(K)
+cluster_cols <- style$cols
+clust_labels <- style$labels
 
 build_map_panel <- function(d) {
   d <- d |> mutate(cluster = factor(cluster, levels = seq_len(K)))
@@ -49,12 +45,22 @@ build_map_panel <- function(d) {
     scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
     labs(title = "Cluster Map", x = "Longitude", y = "Latitude",
          caption = "White gaps: pixels burned (MTBS moderate+ severity) at any point\n2000-2014, excluded before clustering") +
-    guides(color = guide_legend(override.aes = list(size = 3, alpha = 1))) +
+    guides(color = guide_legend(override.aes = list(size = 2.2, alpha = 1))) +
     theme_bw() +
     theme(
       plot.title      = element_text(hjust = 0.5, face = "bold"),
       plot.caption    = element_text(hjust = 0.5, color = "grey40", size = 8),
-      legend.position = "right",
+      # Legend inset into the panel's upper-right corner, which is genuinely
+      # empty of data (lat > 38.0 & lon > -119.15 has zero pixels, verified
+      # for the combined pixel population too, matching NDVI/NDWI) -- see
+      # 11_dashboard.R for why a side legend was tried and abandoned.
+      legend.position             = "inside",
+      legend.position.inside      = c(0.97, 0.97),
+      legend.justification.inside = c(1, 1),
+      legend.background           = element_rect(fill = "white", color = "grey60"),
+      legend.title                = element_text(size = 9),
+      legend.text                 = element_text(size = 8),
+      legend.key.size             = unit(0.35, "cm"),
       axis.text       = element_text(size = 7)
     )
 }
@@ -68,13 +74,18 @@ fire_panel   <- readRDS("pixel_approach/data/processed/panel_fire_combined.rds")
 beetle_panel <- readRDS("pixel_approach/data/processed/panel_beetle_combined.rds") +
   labs(title = "Beetle (USFS ADS)")
 
-p <- (map_panel) / (fire_panel | beetle_panel) +
-  plot_layout(heights = c(2, 1)) +
+# Map is tall/narrow (Sierra Nevada's geographic extent), bars are wide/short
+# -- stacking them (map above bars) forces both into the same column width,
+# leaving the map row mostly blank on the sides. Placing the map beside a
+# stacked bar column instead pairs complementary shapes, filling a landscape
+# canvas with far less dead space. Same reasoning as 11_dashboard.R.
+p <- ((map_panel) | (fire_panel / beetle_panel)) +
+  plot_layout(widths = c(1, 1)) +
   plot_annotation(
     title = "Combined (NDVI+NDWI): Cluster Map + Real-World Validation Summary",
     theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
   )
 
 out_file <- "pixel_approach/charts/dashboard_combined.pdf"
-ggsave(out_file, plot = p, width = 12, height = 12, dpi = 150)
+ggsave(out_file, plot = p, width = 13, height = 7.5, dpi = 150)
 cat(sprintf("✓ Saved: %s\n", out_file))

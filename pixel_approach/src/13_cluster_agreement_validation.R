@@ -75,7 +75,7 @@ plot_df <- summary_tbl |>
   pivot_longer(cols = c(Fire, Beetle), names_to = "validator", values_to = "pct") |>
   mutate(validator = factor(validator, levels = c("Fire", "Beetle")))
 
-validator_cols <- c(Fire = "#E41A1C", Beetle = "#4DAF4A")
+validator_cols <- c(Fire = "#FF7F00", Beetle = "#4DAF4A")
 
 group_n <- setNames(summary_tbl$n, as.character(summary_tbl$group))
 group_x_labels <- sprintf("%s\n(n=%s)", group_order, format(group_n[group_order], big.mark = ","))
@@ -87,8 +87,8 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
   scale_fill_manual(values = validator_cols, name = NULL) +
   scale_x_discrete(labels = setNames(group_x_labels, group_order)) +
   labs(
-    title    = "Real-World Damage Rates by NDVI/NDWI Cluster-3 Agreement",
-    subtitle = sprintf("%% of pixels with each real-world outcome (%s), by whether NDVI and/or NDWI flagged the pixel \"full CSD\"",
+    title    = "Real-World Damage Rates by NDVI/NDWI Cluster-3 (Most-stressed) Agreement",
+    subtitle = sprintf("%% of pixels with each real-world outcome (%s), by whether NDVI and/or NDWI flagged the pixel \"most-stressed\"",
                         if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS)
                         else sprintf("%d-%d", min(VALIDATION_YEARS), max(VALIDATION_YEARS))),
     x = NULL, y = "% of pixels"
@@ -160,7 +160,7 @@ panels <- lapply(group_order, build_group_panel)
 
 p_map <- (panels[[1]] | panels[[2]] | panels[[3]]) +
   plot_annotation(
-    title    = "Where NDVI and NDWI Agree / Disagree on Cluster 3 (\"full CSD\")",
+    title    = "Where NDVI and NDWI Agree / Disagree on Cluster 3 (\"most-stressed\")",
     subtitle = "Each pixel is one real 500m grid cell -- see cluster_agreement_validation.pdf for damage rates",
     theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold"),
                       plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))

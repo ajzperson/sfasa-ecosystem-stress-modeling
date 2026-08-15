@@ -95,25 +95,23 @@ cat(sprintf("Running k-means (k=%d, seed=%d) on combined 4-feature space...\n", 
 km <- sweep_res$km_final
 d$cluster_raw <- km$cluster
 
-# Composite/stress-rank score: first principal component of the same 4
-# z-scored features used for clustering, rather than an unweighted sum of
-# the raw resid_tau_* values. NDVI- and NDWI-derived features are weakly
-# correlated (r1: r=0.20; skew: r=-0.15) -- treating all 4 as equal
-# contributors to "stress" isn't supported by the data, so PC1 is used to
-# let the shared-variance structure set each feature's weight instead of
-# assuming a fixed 25/25/25/25 split.
-pca  <- prcomp(feat)
-rot1 <- pca$rotation[, 1]
-pc1  <- pca$x[, 1]
-if (mean(rot1) < 0) { rot1 <- -rot1; pc1 <- -pc1 }
-d$pc1 <- pc1
-cat(sprintf("  PC1 explains %.1f%% of variance\n", 100 * summary(pca)$importance[2, 1]))
-cat(sprintf("  PC1 loadings: %s\n",
-            paste(sprintf("%s=%.3f", colnames(feat), rot1), collapse = ", ")))
+# Composite/stress-rank score: unweighted sum of the same 4 z-scored
+# features used for clustering. An earlier version used PC1 (first
+# principal component) instead, reasoned that NDVI/NDWI's weak cross-index
+# correlation (r1: r=0.20; skew: r=-0.15) meant equal weights weren't
+# supported by the data. Tested directly: PC1 only explains 30.8% of
+# variance (barely above the 25% no-structure baseline for 4 features) and
+# assigns tau_skew_ndvi a counterintuitive *negative* loading (-0.293) --
+# despite that, re-ranking the same raw K-means clusters with PC1 vs. a
+# plain unweighted sum produces 100% identical cluster assignments (verified
+# directly: both orderings are cluster 1 < 4 < 3 < 2 by mean score). Since
+# the two methods are provably equivalent for this data, the simpler,
+# easier-to-explain unweighted sum is used -- no PCA-specific caveat needed.
+d$stress_score <- rowSums(feat)
 
 stress_rank <- d |>
   group_by(cluster_raw) |>
-  summarise(composite = mean(pc1), .groups = "drop") |>
+  summarise(composite = mean(stress_score), .groups = "drop") |>
   arrange(composite) |>
   mutate(stress_rank = row_number())
 

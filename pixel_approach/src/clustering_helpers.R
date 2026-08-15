@@ -4,10 +4,11 @@ library(cluster)
 
 # Shared logic between 06_clustering.R (per-index) and
 # 06b_clustering_combined.R (combined NDVI+NDWI) -- the two scripts differ
-# in how many features they cluster on and how they relabel clusters by
-# stress rank (raw composite vs PC1; see each script's own header for why),
-# but share everything else: baseline-density residualization, the K-sweep
-# loop, and the two chart builders. Sourced by both, not run standalone.
+# in how many features they cluster on (2 vs 4) and relabel clusters by
+# stress rank the same way (unweighted composite sum of the residualized
+# features), but share everything else: baseline-density residualization,
+# the K-sweep loop, and the two chart builders. Sourced by both, not run
+# standalone.
 
 # --- Cluster color/label style, shared by every K-means chart in this repo ---
 build_cluster_style <- function(K) {
@@ -15,15 +16,18 @@ build_cluster_style <- function(K) {
     colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(K),
     as.character(seq_len(K))
   )
-  # rep(" - partial", K - 2) errors for K=1 (negative times); K=1 is
-  # degenerate anyway (one cluster can't be both least and most stressed),
-  # so it gets its own generic label rather than forcing the
-  # no-CSD/partial/full-CSD framing onto it.
+  # K=1 is degenerate (one cluster can't be both least and most stressed),
+  # so it gets its own generic label. K=4's two middle tiers get distinct
+  # labels (low-/high-moderate); any other K just repeats "Moderate".
+  mid_labels <- if (K == 4) {
+    c(" - Low-moderate", " - High-moderate")
+  } else {
+    rep(" - Moderate", max(K - 2, 0))
+  }
   labels <- if (K == 1) {
     "1 - all"
   } else {
-    paste0(seq_len(K), c(" - no CSD", rep(" - partial", max(K - 2, 0)),
-                         " - full CSD"))
+    paste0(seq_len(K), c(" - Least-stressed", mid_labels, " - Most-stressed"))
   }
   list(cols = cols, labels = labels)
 }

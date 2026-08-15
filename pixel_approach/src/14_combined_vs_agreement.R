@@ -1,4 +1,6 @@
 library(tidyverse)
+library(patchwork)
+library(ggtext)
 
 # Compares the combined NDVI+NDWI clustering's "most stressed" group against
 # the pixels where NDVI-alone and NDWI-alone's INDEPENDENT clusterings both
@@ -30,9 +32,9 @@ d <- combined |>
     in_combined_top   = as.integer(combined_cluster) == K_combined,
     in_agreement_both = as.integer(ndvi_cluster) == 3 & as.integer(ndwi_cluster) == 3,
     group = case_when(
-      in_combined_top  & in_agreement_both  ~ "Both methods agree",
-      in_combined_top  & !in_agreement_both ~ "Combined only",
-      !in_combined_top & in_agreement_both  ~ "Agreement only",
+      in_combined_top  & in_agreement_both  ~ "Both",
+      in_combined_top  & !in_agreement_both ~ "\"NDVI+NDWI_4\" only",
+      !in_combined_top & in_agreement_both  ~ "\"NDVI_3 & NDWI_3\" only",
       TRUE                                  ~ "Neither"
     )
   )
@@ -63,7 +65,7 @@ d <- d |>
   left_join(beetle |> select(pixel_id, any_mortality), by = "pixel_id") |>
   left_join(fire |> select(pixel_id, burned_validation), by = "pixel_id")
 
-group_order <- c("Neither", "Combined only", "Agreement only", "Both methods agree")
+group_order <- c("Neither", "\"NDVI+NDWI_4\" only", "\"NDVI_3 & NDWI_3\" only", "Both")
 summary_tbl <- d |>
   mutate(group = factor(group, levels = group_order)) |>
   group_by(group) |>
@@ -94,11 +96,11 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.7) +
   geom_text(aes(label = sprintf("%.1f%%", pct)),
             position = position_dodge(width = 0.75), vjust = -0.4, size = 3) +
-  scale_fill_manual(values = c(Beetle = "#4DAF4A", Fire = "#E41A1C"), name = NULL) +
+  scale_fill_manual(values = c(Beetle = "#4DAF4A", Fire = "#FF7F00"), name = NULL) +
   scale_x_discrete(labels = setNames(group_x_labels, group_order)) +
   labs(
-    title    = "Combined Clustering vs. Independent NDVI/NDWI Agreement",
-    subtitle = "Real 2015-2016 damage rates by whether each method flags a pixel as most-stressed",
+    title    = "NDVI+NDWI_4 vs. NDVI_3 & NDWI_3",
+    subtitle = "Real 2015-2016 damage rates for two different definitions of \"most-stressed\"",
     x = NULL, y = "% of pixels"
   ) +
   theme_bw() +
@@ -108,5 +110,81 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
     legend.position = "top"
   )
 
-ggsave("pixel_approach/charts/combined_vs_agreement.pdf", plot = p, width = 9, height = 6, dpi = 150)
+# --- Two circles above the bar chart: each shows what ONE definition of
+# "most-stressed" looks like on its own, before the bar chart crosses them
+# together. Left = the alone-indices definition (NDVI_3 & NDWI_3 overlap);
+# right = the combined-clustering definition (NDVI+NDWI_4). Same total
+# population (n = nrow(d)) in both, so the two circles are directly
+# comparable in size.
+build_pie <- function(n_flagged, n_total, flagged_label, panel_title) {
+  pie_df <- tibble(
+    slice = factor(c(flagged_label, "Rest"), levels = c(flagged_label, "Rest")),
+    n     = c(n_flagged, n_total - n_flagged)
+  ) |>
+    mutate(pct = 100 * n / sum(n))
+
+  # Only the short %/n go inside the wedge -- the descriptive slice name
+  # (e.g. "NDVI_3 & NDWI_3") is too long to fit inside the smaller wedge
+  # without overflowing past its edge, so it moves to the subtitle instead,
+  # with the wedge's own color as the visual link back to which slice it names.
+  ggplot(pie_df, aes(x = "", y = n, fill = slice)) +
+    geom_col(width = 1, color = "white", linewidth = 0.6) +
+    coord_polar(theta = "y", start = 0) +
+    geom_text(aes(label = sprintf("%.1f%%\n(n=%s)", pct, format(n, big.mark = ","))),
+               position = position_stack(vjust = 0.5), size = 3.6, fontface = "bold",
+               color = c("black", "grey30")) +
+    # Red -- matches the "most-stressed = red" color used for every cluster
+    # map/legend elsewhere in the deck (build_cluster_style()). Fire's bar
+    # color was changed to orange instead, so this stays consistent with
+    # the rest of the deck rather than being the one-off exception.
+    scale_fill_manual(values = setNames(c("#D73027", "grey85"), c(flagged_label, "Rest")), guide = "none") +
+    labs(title = panel_title,
+         subtitle = sprintf("Red = **%s**", flagged_label)) +
+    theme_void() +
+    theme(plot.title    = element_text(hjust = 0.5, face = "bold", size = 12),
+          plot.subtitle = element_markdown(hjust = 0.5, color = "#D73027", size = 9.5))
+}
+
+n_total <- nrow(d)
+pie_alone    <- build_pie(n_b, n_total, "NDVI_3 & NDWI_3", "Separate\nClustering\n(NDVI-alone, NDWI-alone)")
+pie_combined <- build_pie(n_a, n_total, "NDVI+NDWI_4",     "Combined\nClustering\n(NDVI + NDWI together)")
+
+# Small bordered notes flanking the two circles, spelling out what the
+# cluster-number notation means -- "3" and "4" refer to different K's
+# (separate clustering is K=3, combined is K=4), so both are each
+# clustering's own top/most-stressed tier, not directly comparable numbers.
+# geom_textbox (ggtext) instead of plain annotate("text", ...) -- it auto-wraps
+# to the given width AND understands markdown, so the term itself (NDVI_3,
+# NDWI_3, NDVI+NDWI_4) can be bolded with **term** while the rest of the
+# definition stays regular weight, all within one text block.
+build_note <- function(text_md) {
+  ggplot() +
+    geom_textbox(aes(x = 0.5, y = 0.5, label = text_md),
+                 width = unit(1.5, "in"), box.color = NA, fill = NA,
+                 hjust = 0.5, vjust = 0.5, halign = 0.5, size = 3.3) +
+    xlim(0, 1) + ylim(0, 1) +
+    theme_void() +
+    theme(
+      panel.border = element_rect(color = "grey50", fill = NA, linewidth = 0.6),
+      plot.margin  = margin(10, 8, 10, 8)
+    )
+}
+
+wrap_def <- function(term, rhs, cluster_line) {
+  sprintf("**%s** = %s<br>%s", term, rhs, cluster_line)
+}
+
+note_left <- build_note(paste(
+  wrap_def("NDVI_3", "Separate Clustering (NDVI-alone)", "Cluster 3 (Most-stressed)"),
+  wrap_def("NDWI_3", "Separate Clustering (NDWI-alone)", "Cluster 3 (Most-stressed)"),
+  sep = "<br><br>"
+))
+note_right <- build_note(
+  wrap_def("NDVI+NDWI_4", "Combined Clustering (NDVI+NDWI)", "Cluster 4 (Most-stressed)")
+)
+
+p_full <- (note_left | pie_alone | pie_combined | note_right) / p +
+  plot_layout(heights = c(1, 1.6), widths = c(0.8, 1.4, 1.4, 0.8))
+
+ggsave("pixel_approach/charts/combined_vs_agreement.pdf", plot = p_full, width = 9, height = 9.5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_vs_agreement.pdf\n")

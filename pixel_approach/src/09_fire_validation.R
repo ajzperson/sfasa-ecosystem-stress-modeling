@@ -1,6 +1,8 @@
 library(tidyverse)
 library(patchwork)
 
+source("pixel_approach/src/clustering_helpers.R")
+
 # Cross-validates K-means clusters against MTBS burn exposure (extracted in
 # 02c_pixel_fire.R, independent of clustering). A pixel counts as "burned"
 # only at moderate+ MTBS severity -- see 02c for the extraction details.
@@ -75,11 +77,9 @@ run_fire_validation <- function(cfg, fire_flags) {
   write_csv(pixels, cfg$out_csv)
   cat(sprintf("✓ Saved: %s\n", cfg$out_csv))
 
-  cluster_cols <- setNames(
-    colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(3),
-    c("1", "2", "3")
-  )
-  cluster_labels <- c("1" = "1 — no CSD", "2" = "2 — partial", "3" = "3 — full CSD")
+  style          <- build_cluster_style(3)
+  cluster_cols   <- style$cols
+  cluster_labels <- setNames(style$labels, names(style$cols))
 
   p_fire <- ggplot(zonal, aes(x = factor(cluster), y = pct_burned_validation,
                               fill = factor(cluster))) +
@@ -88,6 +88,7 @@ run_fire_validation <- function(cfg, fire_flags) {
               vjust = -0.3, size = 3.5) +
     scale_fill_manual(values = cluster_cols, guide = "none") +
     scale_x_discrete(labels = cluster_labels) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
     labs(
       title = cfg$label,
       x = "Cluster", y = "% pixels burned"

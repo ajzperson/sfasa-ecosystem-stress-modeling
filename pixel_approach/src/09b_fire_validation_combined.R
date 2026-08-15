@@ -1,5 +1,7 @@
 library(tidyverse)
 
+source("pixel_approach/src/clustering_helpers.R")
+
 # Cross-validates the COMBINED (NDVI+NDWI 4-feature) clustering (06b) against
 # MTBS burn exposure (02c) -- same role as 09_fire_validation.R, but for the
 # combined-feature clustering approach instead of per-index clustering.
@@ -47,14 +49,9 @@ write_csv(pixels, "pixel_approach/data/processed/combined_pixel_fire.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_fire.csv\n")
 
 K <- max(pixels$cluster, na.rm = TRUE)
-cluster_cols <- setNames(
-  colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(K),
-  as.character(seq_len(K))
-)
-cluster_labels <- setNames(
-  paste0(seq_len(K), c(" — no CSD", rep(" — partial", max(K - 2, 0)), " — full CSD")),
-  as.character(seq_len(K))
-)
+style          <- build_cluster_style(K)
+cluster_cols   <- style$cols
+cluster_labels <- setNames(style$labels, names(style$cols))
 
 p_fire <- ggplot(zonal, aes(x = factor(cluster), y = pct_burned_validation,
                             fill = factor(cluster))) +
@@ -63,16 +60,22 @@ p_fire <- ggplot(zonal, aes(x = factor(cluster), y = pct_burned_validation,
             vjust = -0.3, size = 3.5) +
   scale_fill_manual(values = cluster_cols, guide = "none") +
   scale_x_discrete(labels = cluster_labels) +
-  labs(
-    title    = sprintf("MTBS Moderate+ Burn Severity by Combined Cluster (%s)", year_label),
-    subtitle = "% of pixels burned (severity >= moderate) — ground-truth validation, after cluster assignment",
-    x = "Cluster", y = "% pixels burned"
-  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(x = "Cluster", y = "% pixels burned") +
   theme_bw() +
   theme(plot.title    = element_text(hjust = 0.5, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))
 
-ggsave("pixel_approach/charts/combined_fire_by_cluster.pdf", plot = p_fire, width = 7, height = 5, dpi = 150)
+# Title/subtitle only on the standalone chart -- kept off the base p_fire so
+# the panel saved below stays clean for 11b_dashboard_combined.R (matches
+# 09_fire_validation.R, where the per-index panel only ever gets a short
+# cfg$label title and the elaborate title/subtitle is added separately, at
+# ggsave time, for that script's own two-panel combined chart).
+p_fire_standalone <- p_fire +
+  labs(title    = sprintf("MTBS Moderate+ Burn Severity by Combined Cluster (%s)", year_label),
+       subtitle = "% of pixels burned (severity >= moderate) — ground-truth validation, after cluster assignment")
+
+ggsave("pixel_approach/charts/combined_fire_by_cluster.pdf", plot = p_fire_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_fire_by_cluster.pdf\n")
 
 # Saved separately so 11b_dashboard_combined.R can assemble a one-page

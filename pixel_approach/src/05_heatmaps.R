@@ -49,6 +49,7 @@ plot_heatmap <- function(data, col, panel_title, low_col, high_col,
       xlim = range(data$lon),
       ylim = range(data$lat)
     ) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
     labs(title = panel_title, x = "Longitude", y = "Latitude") +
     theme_bw() +
     theme(

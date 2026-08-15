@@ -136,7 +136,7 @@ Turns each pixel's CSD statistics into a stress tier (K-means), run independentl
 5. Flip sign: `neg_resid_tau_skew = -resid_tau_skew`, so higher = more stressed, consistent with `resid_tau_r1`'s convention.
 6. Z-score both features (`resid_tau_r1`, `neg_resid_tau_skew`).
 7. K-means sweep K=2-8 (elbow + silhouette, for the chart), then fit K-means at K=3 (the chosen value).
-8. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) - mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed. Uses a raw composite here, not PC1 (contrast with the combined approach below): within a single index, `resid_tau_r1` and `resid_tau_skew` are nearly uncorrelated (NDVI: r=-0.01, NDWI: r=-0.08), so there's no cross-source conflict for PC1 to resolve.
+8. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) - mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed. Same unweighted-composite approach as the combined method below (see its note for why PC1 was tried and dropped).
 
 **Parameters:**
 - `K = 3`
@@ -198,7 +198,7 @@ Exploratory alternative to the per-index clustering above: instead of clustering
 1. Load `tau_r1, tau_skew` for both NDVI and NDWI; inner-join on `pixel_id` (only pixels with a valid tau for both indices). This makes the combined study population smaller than either independent run: NDVI-only (06) has 219,670 pixels, NDWI-only (06) has 219,684, combined (06b) has 219,637 — the exact intersection, dropping 33 pixels valid for NDVI but not NDWI and 47 valid for NDWI but not NDVI (80 total, ~0.036% of the population).
 2. Exclude burned pixels, compute `base_level`, residualize `tau_r1`/`tau_skew` against it, and flip skew's sign — same as `06`'s steps 2-5, applied once per index via the shared `compute_base_level()`/`residualize_tau()` helpers in `clustering_helpers.R`.
 3. Z-score all 4 features, K-means sweep K=2-8, fit K-means at the chosen K.
-4. Relabel clusters by stress rank using PC1 of the same 4 z-scored features (not a raw unweighted sum) — NDVI's and NDWI's features are only weakly correlated (r1: r=0.20; skew: r=-0.15), so an unweighted sum isn't a well-supported way to combine them; PC1 lets the shared-variance structure set each feature's weight instead.
+4. Relabel clusters by stress rank using an unweighted sum of the same 4 z-scored features. An earlier version used PC1 (first principal component) instead, reasoned that NDVI/NDWI's weak cross-index correlation (r1: r=0.20; skew: r=-0.15) meant equal weights weren't well-supported. Tested directly: PC1 explains only 30.8% of variance (barely above the 25% no-structure baseline) and gives `tau_skew_ndvi` a counterintuitive negative loading (-0.293) — but re-ranking the same raw K-means clusters with PC1 vs. the unweighted sum produces 100% identical cluster assignments. Since the two are provably equivalent here, the simpler unweighted sum is used.
 
 **Parameters:**
 - `K = 4`, `SEED = 42`, `nstart = 25`, `iter.max = 100`

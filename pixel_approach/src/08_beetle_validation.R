@@ -1,6 +1,8 @@
 library(tidyverse)
 library(patchwork)
 
+source("pixel_approach/src/clustering_helpers.R")
+
 # Cross-validates K-means clusters against USFS ADS beetle-kill mortality
 # (extracted in 02e_pixel_beetle.R, independent of clustering) -- same role
 # as 09_fire_validation.R / 10_lcmap_validation.R.
@@ -66,11 +68,9 @@ run_beetle_validation <- function(cfg, beetle_flags) {
   write_csv(pixels, cfg$out_csv)
   cat(sprintf("✓ Saved: %s\n", cfg$out_csv))
 
-  cluster_cols <- setNames(
-    colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(3),
-    c("1", "2", "3")
-  )
-  cluster_labels <- c("1" = "1 — no CSD", "2" = "2 — partial", "3" = "3 — full CSD")
+  style          <- build_cluster_style(3)
+  cluster_cols   <- style$cols
+  cluster_labels <- setNames(style$labels, names(style$cols))
 
   p_tpa <- ggplot(zonal, aes(x = factor(cluster), y = pct_with_mortality,
                               fill = factor(cluster))) +
@@ -80,7 +80,7 @@ run_beetle_validation <- function(cfg, beetle_flags) {
               vjust = -0.3, size = 3.5) +
     scale_fill_manual(values = cluster_cols, guide = "none") +
     scale_x_discrete(labels = cluster_labels) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.22))) +
     labs(
       title = cfg$label,
       x = "Cluster", y = "% pixels with beetle mortality"
