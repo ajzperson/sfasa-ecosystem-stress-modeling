@@ -13,28 +13,21 @@ source("pixel_approach/src/clustering_helpers.R")
 # signals against each other, which only works if each keeps its own
 # cluster assignment to compare.
 #
-# This replaces an earlier tau_r1 + tau_var composite after real-data
-# validation against MTBS fire and LCMAP tree-cover-loss (2015-2016)
-# exposed two problems with it:
-#   1. tau_r1 and tau_var both correlate with a pixel's own baseline
-#      (2000-2014) vegetation density (r=0.30, r=-0.19 for NDVI) — denser
-#      forest mechanically has more fuel to burn and more tree cover
-#      eligible to register an LCMAP loss transition, regardless of any
-#      CSD dynamics. That confound was leaking into cluster assignment.
-#      Both features are now residualized against baseline density before
-#      clustering (post-residualization correlation ~0) to remove it.
-#   2. tau_var itself does not track real-world 2015-2016 severity in this
-#      data — if anything it runs backwards (rising variance associated
-#      with *lower* fire/mortality). tau_skew — previously excluded
-#      entirely — turned out to be the variable that actually predicts
-#      real-world fire/mortality, both at the raw pixel level and after
-#      density-residualizing. Sign is flipped (more negative skew trend =
-#      more stressed) to match tau_r1's convention.
-# After both fixes, cluster K ("full CSD") is correctly the highest-risk
-# cluster in both NDVI and NDWI against MTBS/LCMAP. NDWI's ordering is
-# fully monotonic (1 < 2 < 3, all pairwise differences significant);
-# NDVI's cluster 1/2 boundary is still not fully clean, but cluster K is
-# reliably worst in both.
+# tau_var was part of an earlier tau_r1 + tau_var version of this
+# clustering; tau_skew is used instead. tau_r1 and tau_skew both
+# correlate with a pixel's own baseline (2000-2014) vegetation density
+# (r=0.30, r=-0.15 for NDVI; r=0.31, r=-0.19 for NDWI) — denser forest
+# mechanically has more fuel to burn and more tree cover eligible to
+# register an LCMAP loss transition, regardless of any actual CSD
+# dynamics. Both are residualized against baseline density before
+# clustering (post-residualization correlation ~0) to remove it. tau_var
+# is still computed by 03 but unused here.
+#
+# Cluster K ("full CSD") is correctly the highest-risk cluster in both
+# NDVI and NDWI against MTBS/LCMAP. NDWI's ordering is fully monotonic
+# (1 < 2 < 3, all pairwise differences significant); NDVI's cluster 1/2
+# boundary is still not fully clean, but cluster K is reliably worst in
+# both.
 #
 # Each index is still validated against its own actual-drop ground truth
 # (Actual_Drop_15_16 for NDVI, Actual_NDWI_Drop_15_16 for NDWI) in the
@@ -133,10 +126,12 @@ run_clustering <- function(cfg, K, SEED) {
                        "resid_tau_r1", "resid_tau_skew")
 
   # Scale features before clustering (Euclidean distance is scale-sensitive).
-  # neg_resid_tau_skew flips sign so higher = more stressed, consistent
-  # with resid_tau_r1's convention (see header for why tau_skew replaced
-  # tau_var).
-  feat <- d |> transmute(resid_tau_r1, neg_resid_tau_skew = -resid_tau_skew) |> scale()
+  # resid_tau_skew is used unflipped -- its sign isn't forced to match
+  # resid_tau_r1's "higher = more stressed" convention, since skewness's
+  # direction near a transition depends on which state the system is
+  # heading toward (not universal, unlike r1). Left raw so k-means can
+  # separate pixels by that direction rather than having it collapsed away.
+  feat <- d |> transmute(resid_tau_r1, resid_tau_skew) |> scale()
 
   # --- K sweep - elbow + silhouette (K = 2 to 8), then K-means at chosen K ---
   cat("Running K sweep (K=2 to 8) for elbow and silhouette plots...\n")
@@ -151,7 +146,7 @@ run_clustering <- function(cfg, K, SEED) {
   # consistent with the heatmaps (red = more stressed, blue = less stressed).
   stress_rank <- d |>
     group_by(cluster_raw) |>
-    summarise(composite = mean(resid_tau_r1) - mean(resid_tau_skew), .groups = "drop") |>
+    summarise(composite = mean(resid_tau_r1) + mean(resid_tau_skew), .groups = "drop") |>
     arrange(composite) |>
     mutate(stress_rank = row_number())   # 1 = least stressed, K = most stressed
 
@@ -174,7 +169,7 @@ run_clustering <- function(cfg, K, SEED) {
       tau_skew      = round(mean(tau_skew), 4),
       resid_tau_r1  = round(mean(resid_tau_r1),   4),
       resid_tau_skew = round(mean(resid_tau_skew), 4),
-      composite     = round(mean(resid_tau_r1) - mean(resid_tau_skew), 4),
+      composite     = round(mean(resid_tau_r1) + mean(resid_tau_skew), 4),
       # actual_drop = round(mean(.data[[drop_col]], na.rm = TRUE), 4),  # deprioritized
       .groups = "drop"
     ) |>

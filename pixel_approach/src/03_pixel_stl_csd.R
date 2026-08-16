@@ -83,7 +83,7 @@ roll_skew <- function(x) {
   mu  <- mean(x)
   num <- mean((x - mu)^3)
   den <- (mean((x - mu)^2))^(3/2)
-  -(num / den)
+  num / den
 }
 
 # --- Data guardrail: contiguous edge-NA run length -------------------------

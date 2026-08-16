@@ -32,19 +32,38 @@ d_ndwi <- read_csv("pixel_approach/data/processed/ndwi_pixel_tau.csv",
 sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 plot_heatmap <- function(data, col, panel_title, low_col, high_col,
-                          limits = NULL, legend_name = col) {
+                          limits = NULL, legend_name = col,
+                          legend_breaks = waiver(), legend_labels = waiver(),
+                          legend_reverse = FALSE, diverging = TRUE) {
   ggplot(data, aes(x = lon, y = lat, color = .data[[col]])) +
     geom_point(size = 0.05, alpha = 0.6) +
     geom_sf(data = sn_boundary, fill = NA, color = "grey30",
             linewidth = 0.4, inherit.aes = FALSE) +
-    scale_color_gradient2(
-      low      = low_col,
-      mid      = "white",
-      high     = high_col,
-      midpoint = 0,
-      limits   = limits,
-      name     = legend_name
-    ) +
+    (if (diverging) {
+      scale_color_gradient2(
+        low      = low_col,
+        mid      = "white",
+        high     = high_col,
+        midpoint = 0,
+        limits   = limits,
+        name     = legend_name,
+        breaks   = legend_breaks,
+        labels   = legend_labels,
+        guide    = guide_colorbar(reverse = legend_reverse)
+      )
+    } else {
+      # One-sided (e.g. |tau_skew|, 0..1): plain low->high gradient, no
+      # midpoint -- there's no "opposite direction" to diverge toward.
+      scale_color_gradient(
+        low    = low_col,
+        high   = high_col,
+        limits = limits,
+        name   = legend_name,
+        breaks = legend_breaks,
+        labels = legend_labels,
+        guide  = guide_colorbar(reverse = legend_reverse)
+      )
+    }) +
     coord_sf(
       xlim = range(data$lon),
       ylim = range(data$lat)
@@ -84,6 +103,10 @@ save_combined(
   out_file = "pixel_approach/charts/heatmap_tau_var.pdf"
 )
 
+# Simple two-color diverging scale, same structure as tau_r1/tau_var --
+# this is a forest-only study area (no desert/dryland pixels), so the
+# dense-forest mechanism (lower/more-negative tau_skew = worse) applies
+# uniformly; no need to hedge the positive direction separately.
 save_combined(
   plot_heatmap(d_ndvi, "tau_skew", "NDVI", "#D73027", "#2166AC", limits = c(-1, 1)),
   plot_heatmap(d_ndwi, "tau_skew", "NDWI", "#D73027", "#2166AC", limits = c(-1, 1)),

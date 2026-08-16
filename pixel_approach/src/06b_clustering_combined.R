@@ -78,13 +78,15 @@ d <- residualize_tau(d, "tau_r1_ndvi", "tau_skew_ndvi", "base_level_ndvi",
 d <- residualize_tau(d, "tau_r1_ndwi", "tau_skew_ndwi", "base_level_ndwi",
                      "resid_tau_r1_ndwi", "resid_tau_skew_ndwi")
 
-# Sign-flip both indices' skew residual so higher = more stressed, consistent
-# with resid_tau_r1's convention (same reasoning as 06_clustering.R).
+# Each index's skew residual is used unflipped, same reasoning as
+# 06_clustering.R: skewness's direction near a transition isn't forced to
+# match resid_tau_r1's "higher = more stressed" convention, since it depends
+# on which state the system is heading toward (not universal, unlike r1).
 feat <- d |>
   transmute(resid_tau_r1_ndvi,
-            neg_resid_tau_skew_ndvi = -resid_tau_skew_ndvi,
+            resid_tau_skew_ndvi,
             resid_tau_r1_ndwi,
-            neg_resid_tau_skew_ndwi = -resid_tau_skew_ndwi) |>
+            resid_tau_skew_ndwi) |>
   scale()
 
 cat("Running K sweep (K=2 to 8) for elbow and silhouette plots...\n")

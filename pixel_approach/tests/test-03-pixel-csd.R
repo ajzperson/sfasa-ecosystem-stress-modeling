@@ -59,11 +59,11 @@ test_that("roll_var equals plain variance", {
   expect_equal(roll_var(x), var(x))
 })
 
-test_that("roll_skew is negated and detects right-skew as negative", {
+test_that("roll_skew detects right-skew as positive (real, un-negated skewness)", {
   # c(1,1,1,1,10) has positive raw (Fisher-Pearson) skewness (long right
-  # tail) -- roll_skew negates it, so the result should be negative.
+  # tail) -- roll_skew returns the real, un-negated value.
   x <- c(1, 1, 1, 1, 10)
-  expect_lt(roll_skew(x), 0)
+  expect_gt(roll_skew(x), 0)
 })
 
 test_that("roll_skew is ~0 for a symmetric distribution", {
