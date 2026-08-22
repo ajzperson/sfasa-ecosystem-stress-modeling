@@ -128,7 +128,7 @@ write_csv(d, "pixel_approach/data/processed/combined_pixel_clusters.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_clusters.csv\n")
 
 # --- K-sweep chart ---
-p_sweep <- build_k_sweep_panel(sweep_df, K, "Combined (NDVI+NDWI)") +
+p_sweep <- build_k_sweep_panel(sweep_df, K, "NDVI+NDWI-combined") +
   plot_annotation(
     title = sprintf("K-means Hyperparameter Sweep (K = 2-8), Combined NDVI+NDWI Features; selected K = %d shown in red", K),
     theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))

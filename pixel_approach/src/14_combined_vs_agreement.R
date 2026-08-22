@@ -96,7 +96,7 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.7) +
   geom_text(aes(label = sprintf("%.1f%%", pct)),
             position = position_dodge(width = 0.75), vjust = -0.4, size = 3) +
-  scale_fill_manual(values = c(Beetle = "#4DAF4A", Fire = "#FF7F00"), name = NULL) +
+  scale_fill_manual(values = c(Beetle = "#A0522D", Fire = "#ED6623"), name = NULL) +
   scale_x_discrete(labels = setNames(group_x_labels, group_order)) +
   labs(
     title    = "NDVI+NDWI_4 vs. NDVI_3 & NDWI_3",

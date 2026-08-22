@@ -75,7 +75,7 @@ plot_df <- summary_tbl |>
   pivot_longer(cols = c(Fire, Beetle), names_to = "validator", values_to = "pct") |>
   mutate(validator = factor(validator, levels = c("Fire", "Beetle")))
 
-validator_cols <- c(Fire = "#FF7F00", Beetle = "#4DAF4A")
+validator_cols <- c(Fire = "#ED6623", Beetle = "#A0522D")
 
 group_n <- setNames(summary_tbl$n, as.character(summary_tbl$group))
 group_x_labels <- sprintf("%s\n(n=%s)", group_order, format(group_n[group_order], big.mark = ","))

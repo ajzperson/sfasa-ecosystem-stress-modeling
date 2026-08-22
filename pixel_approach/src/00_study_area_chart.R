@@ -65,7 +65,10 @@ p_main <- ggplot() +
   )
 
 p_inset <- ggplot(zoom_pixels, aes(x = lon, y = lat, width = tile_w, height = LAT_STEP)) +
-  geom_tile(fill = "#4DAF4A", color = "white", linewidth = 0.15) +
+  # linewidth thicker than a typical hairline -- thin gridlines are prone to
+  # disappearing when Slides/Google Slides re-compresses the embedded image,
+  # even though they render fine in Keynote/LibreOffice/PowerPoint.
+  geom_tile(fill = "#4DAF4A", color = "white", linewidth = 0.4) +
   labs(
     title = "Zoomed: individual pixels (\"500m\", actually ~463m)",
     subtitle = "Each tile = one pixel, identified by pixel_id\nand a fixed lon/lat centroid",

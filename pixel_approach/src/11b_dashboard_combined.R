@@ -82,7 +82,7 @@ beetle_panel <- readRDS("pixel_approach/data/processed/panel_beetle_combined.rds
 p <- ((map_panel) | (fire_panel / beetle_panel)) +
   plot_layout(widths = c(1, 1)) +
   plot_annotation(
-    title = "Combined (NDVI+NDWI): Cluster Map + Real-World Validation Summary",
+    title = "NDVI+NDWI-combined: Cluster Map + Real-World Validation Summary",
     theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
   )
 
