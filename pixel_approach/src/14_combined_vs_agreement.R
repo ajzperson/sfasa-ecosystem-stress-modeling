@@ -34,7 +34,7 @@ d <- combined |>
     group = case_when(
       in_combined_top  & in_agreement_both  ~ "Both",
       in_combined_top  & !in_agreement_both ~ "\"NDVI+NDWI_4\" only",
-      !in_combined_top & in_agreement_both  ~ "\"NDVI_3 & NDWI_3\" only",
+      !in_combined_top & in_agreement_both  ~ "\"NDVI_3 ∩ NDWI_3\" only",
       TRUE                                  ~ "Neither"
     )
   )
@@ -65,7 +65,7 @@ d <- d |>
   left_join(beetle |> select(pixel_id, any_mortality), by = "pixel_id") |>
   left_join(fire |> select(pixel_id, burned_validation), by = "pixel_id")
 
-group_order <- c("Neither", "\"NDVI+NDWI_4\" only", "\"NDVI_3 & NDWI_3\" only", "Both")
+group_order <- c("Neither", "\"NDVI+NDWI_4\" only", "\"NDVI_3 ∩ NDWI_3\" only", "Both")
 summary_tbl <- d |>
   mutate(group = factor(group, levels = group_order)) |>
   group_by(group) |>
@@ -99,14 +99,14 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
   scale_fill_manual(values = c(Beetle = "#A0522D", Fire = "#ED6623"), name = NULL) +
   scale_x_discrete(labels = setNames(group_x_labels, group_order)) +
   labs(
-    title    = "NDVI+NDWI_4 vs. NDVI_3 & NDWI_3",
-    subtitle = "Real 2015-2016 damage rates for two different definitions of \"most-stressed\"",
+    title   = "Real 2015-2016 damage rates",
+    caption = "**Both** = (NDVI_3 ∩ NDWI_3) ∩ NDVI+NDWI_4<br>**Neither** = in neither (NDVI_3 ∩ NDWI_3) nor NDVI+NDWI_4",
     x = NULL, y = "% of pixels"
   ) +
   theme_bw() +
   theme(
-    plot.title    = element_text(hjust = 0.5, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9),
+    plot.title   = element_text(hjust = 0.5, face = "bold"),
+    plot.caption = element_markdown(hjust = 0.5, color = "grey20", size = 13),
     legend.position = "top"
   )
 
@@ -116,7 +116,7 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
 # right = the combined-clustering definition (NDVI+NDWI_4). Same total
 # population (n = nrow(d)) in both, so the two circles are directly
 # comparable in size.
-build_pie <- function(n_flagged, n_total, flagged_label, panel_title) {
+build_pie <- function(n_flagged, n_total, flagged_label, wedge_color) {
   pie_df <- tibble(
     slice = factor(c(flagged_label, "Rest"), levels = c(flagged_label, "Rest")),
     n     = c(n_flagged, n_total - n_flagged)
@@ -133,21 +133,20 @@ build_pie <- function(n_flagged, n_total, flagged_label, panel_title) {
     geom_text(aes(label = sprintf("%.1f%%\n(n=%s)", pct, format(n, big.mark = ","))),
                position = position_stack(vjust = 0.5), size = 3.6, fontface = "bold",
                color = c("black", "grey30")) +
-    # Red -- matches the "most-stressed = red" color used for every cluster
-    # map/legend elsewhere in the deck (build_cluster_style()). Fire's bar
-    # color was changed to orange instead, so this stays consistent with
-    # the rest of the deck rather than being the one-off exception.
-    scale_fill_manual(values = setNames(c("#D73027", "grey85"), c(flagged_label, "Rest")), guide = "none") +
-    labs(title = panel_title,
-         subtitle = sprintf("Red = **%s**", flagged_label)) +
+    # Red family -- #D73027 (the "most-stressed" red used for NDVI+NDWI_4
+    # everywhere else in the deck, slides 12-14) is reserved for that one
+    # wedge only; NDVI_3 ∩ NDWI_3 gets a lighter tint of the same red so the
+    # two pies read as one consistent color family without reusing the
+    # reserved hue.
+    scale_fill_manual(values = setNames(c(wedge_color, "grey85"), c(flagged_label, "Rest")), guide = "none") +
+    labs(subtitle = sprintf("Red = **%s**", flagged_label)) +
     theme_void() +
-    theme(plot.title    = element_text(hjust = 0.5, face = "bold", size = 12),
-          plot.subtitle = element_markdown(hjust = 0.5, color = "#D73027", size = 9.5))
+    theme(plot.subtitle = element_markdown(hjust = 0.5, color = wedge_color, size = 9.5))
 }
 
 n_total <- nrow(d)
-pie_alone    <- build_pie(n_b, n_total, "NDVI_3 & NDWI_3", "Separate\nClustering\n(NDVI-alone, NDWI-alone)")
-pie_combined <- build_pie(n_a, n_total, "NDVI+NDWI_4",     "Combined\nClustering\n(NDVI + NDWI together)")
+pie_alone    <- build_pie(n_b, n_total, "NDVI_3 ∩ NDWI_3", "#E2655E")
+pie_combined <- build_pie(n_a, n_total, "NDVI+NDWI_4",     "#D73027")
 
 # Small bordered notes flanking the two circles, spelling out what the
 # cluster-number notation means -- "3" and "4" refer to different K's
@@ -170,17 +169,17 @@ build_note <- function(text_md) {
     )
 }
 
-wrap_def <- function(term, rhs, cluster_line) {
-  sprintf("**%s** = %s<br>%s", term, rhs, cluster_line)
+wrap_def <- function(term, rhs) {
+  sprintf("**%s** = %s", term, rhs)
 }
 
 note_left <- build_note(paste(
-  wrap_def("NDVI_3", "Separate Clustering (NDVI-alone)", "Cluster 3 (Most-stressed)"),
-  wrap_def("NDWI_3", "Separate Clustering (NDWI-alone)", "Cluster 3 (Most-stressed)"),
+  wrap_def("NDVI_3", "NDVI Most Stressed Cluster"),
+  wrap_def("NDWI_3", "NDWI Most Stressed Cluster"),
   sep = "<br><br>"
 ))
 note_right <- build_note(
-  wrap_def("NDVI+NDWI_4", "Combined Clustering (NDVI+NDWI)", "Cluster 4 (Most-stressed)")
+  wrap_def("NDVI+NDWI_4", "NDVI+NDWI-combined Most Stressed Cluster")
 )
 
 p_full <- (note_left | pie_alone | pie_combined | note_right) / p +
@@ -188,3 +187,10 @@ p_full <- (note_left | pie_alone | pie_combined | note_right) / p +
 
 ggsave("pixel_approach/charts/combined_vs_agreement.pdf", plot = p_full, width = 9, height = 9.5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_vs_agreement.pdf\n")
+
+# Also saved as PNG: the "∩" in the group labels above is outside the PDF
+# device's built-in font encoding (falls back to "." when embedded as a
+# vector font), but rasterizes correctly through the PNG device -- this PNG
+# is the version actually used for the slide embed.
+ggsave("pixel_approach/charts/combined_vs_agreement.png", plot = p_full, width = 9, height = 9.5, dpi = 300)
+cat("✓ Saved: pixel_approach/charts/combined_vs_agreement.png\n")

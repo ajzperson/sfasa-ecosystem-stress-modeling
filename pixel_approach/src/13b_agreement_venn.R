@@ -1,16 +1,22 @@
 library(tidyverse)
-library(sf)
 
 # A 2-circle Venn diagram (NDVI Most-stressed, NDWI Most-stressed) for
 # slide 15 ("Where NDVI and NDWI independently agree, the signal is
-# strongest") -- same visual language as 15_overlap_venn.R (slide 17), but
+# strongest") -- same visual language as 15_overlap_venn.R (slide 16), but
 # simpler: 13_cluster_agreement_validation.R only ever compares NDVI-alone
 # vs NDWI-alone directly (no Combined circle, and "Neither" is deliberately
 # dropped -- "not the question this script asks", per that script's own
-# comment), so this Venn only needs G1/G2/G3, no G4/outer boundary.
+# comment), so this Venn only needs the two circles plus their overlap, no
+# G4/outer boundary.
+#
+# Colors are red-family tints, matching 15_overlap_venn.R's NDVI_3/NDWI_3
+# tiers exactly (same clusters, so same color in both places) -- #D73027,
+# the deck's "most-stressed" red from slides 12-14, is reserved for
+# NDVI+NDWI_4 only and never appears here.
 #
 # Output:
 #   pixel_approach/charts/agreement_venn.pdf
+#   pixel_approach/charts/agreement_venn.png
 
 d <- read_csv("pixel_approach/data/processed/combined_vs_agreement.csv", show_col_types = FALSE)
 
@@ -45,33 +51,25 @@ offset <- 0.7
 circ_ndvi <- circle_pts(-offset, 0, r)
 circ_ndwi <- circle_pts( offset, 0, r)
 
-poly_A <- st_polygon(list(cbind(c(circ_ndvi$x, circ_ndvi$x[1]), c(circ_ndvi$y, circ_ndvi$y[1]))))
-poly_B <- st_polygon(list(cbind(c(circ_ndwi$x, circ_ndwi$x[1]), c(circ_ndwi$y, circ_ndwi$y[1]))))
-
-g1_geom <- st_intersection(poly_A, poly_B)  # Both -- strongest
-g2_geom <- st_difference(poly_A, poly_B)    # NDVI-3 only -- 2nd strongest
-g3_geom <- st_difference(poly_B, poly_A)    # NDWI-3 only -- 3rd strongest
-
-to_df <- function(geom, group) {
-  m <- st_coordinates(geom)
-  tibble(x = m[, "X"], y = m[, "Y"], piece = if ("L2" %in% colnames(m)) m[, "L2"] else 1, group = group)
-}
-regions <- bind_rows(to_df(g2_geom, "G2"), to_df(g3_geom, "G3"), to_df(g1_geom, "G1"))
-
-shade_alpha <- c(G1 = 0.42, G2 = 0.22, G3 = 0.12)
-
+# No G1/G2/G3 shading system here (that's for the 3-circle case in
+# 15_overlap_venn.R, which needs to rank four regions). With only two
+# circles there's nothing to rank -- NDVI-3-only and NDWI-3-only should
+# just be their plain base colors, with the natural alpha-overlap giving
+# "Both" its own shade. A wash layer here would darken the base colors
+# away from 15_overlap_venn.R's NDVI_3/NDWI_3 tiers, breaking the
+# same-cluster-same-color match between the two venns.
 p <- ggplot() +
-  geom_polygon(data = circ_ndvi, aes(x, y), fill = "#2166AC", alpha = 0.5, color = NA) +
-  geom_polygon(data = circ_ndwi, aes(x, y), fill = "#92C5DE", alpha = 0.5, color = NA) +
-  geom_polygon(data = regions, aes(x, y, group = interaction(group, piece), alpha = group),
-               fill = "black", color = "black", linewidth = 0.35) +
-  scale_alpha_manual(values = shade_alpha, guide = "none") +
-  annotate("text", x = 0,        y = 0, label = "G1", size = 5, fontface = "bold", color = "white") +
-  annotate("text", x = -1.3,     y = 0, label = "G2", size = 5, fontface = "bold", color = "black") +
-  annotate("text", x = 1.3,      y = 0, label = "G3", size = 5, fontface = "bold", color = "black") +
+  geom_polygon(data = circ_ndvi, aes(x, y), fill = "#E2655E", alpha = 0.95, color = "black", linewidth = 0.5) +
+  geom_polygon(data = circ_ndwi, aes(x, y), fill = "#EC9B97", alpha = 0.95, color = "black", linewidth = 0.5) +
+  annotate("text", x = -1.3, y = 0, label = "NDVI-3 only", size = 4, fontface = "bold", color = "white") +
+  annotate("text", x = 0,    y = 0, label = "Both",        size = 5, fontface = "bold", color = "white") +
+  annotate("text", x = 1.3,  y = 0, label = "NDWI-3 only", size = 4, fontface = "bold", color = "black") +
   coord_fixed(clip = "off") +
   xlim(-2.3, 2.3) + ylim(-1.6, 1.6) +
   theme_void()
 
 ggsave("pixel_approach/charts/agreement_venn.pdf", plot = p, width = 4.6, height = 3.2, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/agreement_venn.pdf\n")
+
+ggsave("pixel_approach/charts/agreement_venn.png", plot = p, width = 4.6, height = 3.2, dpi = 300)
+cat("✓ Saved: pixel_approach/charts/agreement_venn.png\n")
