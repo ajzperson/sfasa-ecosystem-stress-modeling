@@ -127,19 +127,16 @@ p <- ggplot() +
                fill = "black", color = "black", linewidth = 0.35) +
   scale_alpha_manual(values = shade_alpha, guide = "none") +
   annotate("text", x = 0,     y = -0.05, label = "G4", size = 5, fontface = "bold", color = "white") +
-  annotate("text", x = -0.65, y = 0.5,   label = "G3", size = 5, fontface = "bold", color = "black") +
-  annotate("text", x = 1.15,  y = -0.75, label = "G2", size = 5, fontface = "bold", color = "black") +
-  annotate("text", x = 0.65,  y = 0.5,   label = "G2", size = 5, fontface = "bold", color = "black") +
-  annotate("text", x = 0,     y = -1.0,  label = "G2", size = 5, fontface = "bold", color = "black") +
-  annotate("text", x = 0,     y = 1.55,  label = "G1", size = 5, fontface = "bold", color = "black") +
-  annotate("text", x = -1.3,  y = -0.9,  label = "G1", size = 5, fontface = "bold", color = "black") +
-  annotate("text", x = 0,     y = -2.15, label = "G1", size = 5, fontface = "bold", color = "grey30") +
+  annotate("text", x = -0.65, y = 0.5,   label = "G3", size = 5, fontface = "bold", color = "#1B2A1F") +
+  annotate("text", x = 1.15,  y = -0.75, label = "G2", size = 5, fontface = "bold", color = "#1B2A1F") +
+  annotate("text", x = 0.65,  y = 0.5,   label = "G2", size = 5, fontface = "bold", color = "#1B2A1F") +
+  annotate("text", x = 0,     y = -1.0,  label = "G2", size = 5, fontface = "bold", color = "#1B2A1F") +
+  annotate("text", x = 0,     y = 1.55,  label = "G1", size = 5, fontface = "bold", color = "#1B2A1F") +
+  annotate("text", x = -1.3,  y = -0.9,  label = "G1", size = 5, fontface = "bold", color = "#1B2A1F") +
+  annotate("text", x = 0,     y = -2.15, label = "G1", size = 5, fontface = "bold", color = "#1B2A1F") +
   coord_fixed(clip = "off") +
   xlim(-outer_r - 0.2, outer_r + 0.2) + ylim(-outer_r - 0.2, outer_r + 0.2) +
   theme_void()
 
 ggsave("pixel_approach/charts/overlap_venn.pdf", plot = p, width = 4.2, height = 4.2, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/overlap_venn.pdf\n")
-
-ggsave("pixel_approach/charts/overlap_venn.png", plot = p, width = 4.2, height = 4.2, dpi = 300)
-cat("✓ Saved: pixel_approach/charts/overlap_venn.png\n")

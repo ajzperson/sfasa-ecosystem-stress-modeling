@@ -224,7 +224,6 @@ p_sweep <- combine_panels(
 ggsave("pixel_approach/charts/cluster_k_sweep.pdf",
        plot = p_sweep, width = 10, height = 4 * n_idx, dpi = 150)
 cat("\n✓ Saved: pixel_approach/charts/cluster_k_sweep.pdf\n")
-
 # ----------------------------------------------------------------------------
 # Cluster map: NDVI / NDWI side by side, shared legend (same cluster labels)
 # ----------------------------------------------------------------------------
@@ -234,11 +233,23 @@ build_map_panel <- function(res) {
 
 map_panels <- setNames(lapply(INDICES, function(idx) build_map_panel(results[[idx]])), INDICES)
 
+# The caption is generic boilerplate (not panel-specific), but
+# build_cluster_map_panel puts it on every panel -- with panels side by
+# side, two copies of the same text sit close enough to visually collide.
+# Blanked on every panel here and re-added once below via plot_annotation
+# instead, so it's centered under the full combined width (shared by both
+# panels) rather than attached to just one side.
+map_panels <- lapply(map_panels, function(pnl) pnl + labs(caption = NULL))
+
 p_map <- combine_panels(map_panels) +
   plot_annotation(
     title    = sprintf("K-means Clusters (k=%d) on density-residualized tau_r1 + tau_skew", K),
     subtitle = "Color: blue = least stressed -> red = most stressed (consistent with heatmaps)",
-    theme    = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+    caption  = "White gaps: pixels burned (MTBS moderate+ severity) at any point\n2000-2014, excluded before clustering",
+    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+                      plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"),
+                      plot.caption  = element_text(hjust = 0.5, color = "#1B2A1F", size = 8, face = "bold",
+                                                    margin = margin(t = 10)))
   )
 
 ggsave("pixel_approach/charts/cluster_map.pdf",

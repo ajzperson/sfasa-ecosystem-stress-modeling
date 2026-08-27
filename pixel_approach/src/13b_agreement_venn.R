@@ -16,7 +16,6 @@ library(tidyverse)
 #
 # Output:
 #   pixel_approach/charts/agreement_venn.pdf
-#   pixel_approach/charts/agreement_venn.png
 
 d <- read_csv("pixel_approach/data/processed/combined_vs_agreement.csv", show_col_types = FALSE)
 
@@ -63,13 +62,10 @@ p <- ggplot() +
   geom_polygon(data = circ_ndwi, aes(x, y), fill = "#EC9B97", alpha = 0.95, color = "black", linewidth = 0.5) +
   annotate("text", x = -1.3, y = 0, label = "NDVI-3 only", size = 4, fontface = "bold", color = "white") +
   annotate("text", x = 0,    y = 0, label = "Both",        size = 5, fontface = "bold", color = "white") +
-  annotate("text", x = 1.3,  y = 0, label = "NDWI-3 only", size = 4, fontface = "bold", color = "black") +
+  annotate("text", x = 1.3,  y = 0, label = "NDWI-3 only", size = 4, fontface = "bold", color = "#1B2A1F") +
   coord_fixed(clip = "off") +
   xlim(-2.3, 2.3) + ylim(-1.6, 1.6) +
   theme_void()
 
 ggsave("pixel_approach/charts/agreement_venn.pdf", plot = p, width = 4.6, height = 3.2, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/agreement_venn.pdf\n")
-
-ggsave("pixel_approach/charts/agreement_venn.png", plot = p, width = 4.6, height = 3.2, dpi = 300)
-cat("✓ Saved: pixel_approach/charts/agreement_venn.png\n")

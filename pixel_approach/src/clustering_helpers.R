@@ -104,7 +104,11 @@ build_k_sweep_panel <- function(sweep_df, K, title_prefix) {
     labs(title = sprintf("%s - Elbow Method", title_prefix),
          x = "Number of clusters (K)", y = "Total within-cluster SS") +
     theme_bw() +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+      axis.title = element_text(face = "bold", color = "#1B2A1F"),
+      axis.text  = element_text(face = "bold", size = 11, color = "#1B2A1F")
+    )
 
   p_sil <- ggplot(sweep_df, aes(x = k, y = silhouette)) +
     geom_line(linewidth = 0.8) +
@@ -115,29 +119,56 @@ build_k_sweep_panel <- function(sweep_df, K, title_prefix) {
     labs(title = sprintf("%s - Silhouette Score", title_prefix),
          x = "Number of clusters (K)", y = "Mean silhouette width") +
     theme_bw() +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+      axis.title = element_text(face = "bold", color = "#1B2A1F"),
+      axis.text  = element_text(face = "bold", size = 11, color = "#1B2A1F")
+    )
 
   p_elbow + p_sil
 }
 
 # --- Cluster map panel, titled per caller. `d` must have lon/lat/cluster. ---
+# Boundary drawn as a plain polygon (via st_coordinates) on coord_fixed(),
+# not geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect
+# axis.text's color/size but silently ignore face, so bold axis tick labels
+# are unreachable through the normal theme there (see
+# pixel_approach/src/00_study_area_chart.R for the same fix). Degree-
+# formatted breaks/labels (e.g. "121°W", "40°N") are recreated manually
+# since coord_sf normally supplies those automatically.
 build_cluster_map_panel <- function(d, sn_boundary, cluster_cols, clust_labels, title) {
+  boundary_xy <- as.data.frame(sf::st_coordinates(sn_boundary))
+  lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
+  lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))
   ggplot(d, aes(x = lon, y = lat, color = cluster)) +
     geom_point(size = 0.05, alpha = 0.5) +
-    geom_sf(data = sn_boundary, fill = NA, color = "grey20",
-            linewidth = 0.4, inherit.aes = FALSE) +
+    geom_polygon(data = boundary_xy, aes(x = X, y = Y), fill = NA, color = "grey20",
+                 linewidth = 0.4, inherit.aes = FALSE) +
     scale_color_manual(values = cluster_cols, name = "Stress level",
                        labels = clust_labels) +
-    coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
-    scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
+    coord_fixed(ratio = 1 / cos(median(d$lat) * pi / 180),
+                xlim = range(d$lon), ylim = range(d$lat)) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 3), labels = lon_labels) +
+    scale_y_continuous(labels = lat_labels) +
     labs(title = title, x = "Longitude", y = "Latitude",
          caption = "White gaps: pixels burned (MTBS moderate+ severity) at any point\n2000-2014, excluded before clustering") +
     guides(color = guide_legend(override.aes = list(size = 3, alpha = 1))) +
     theme_bw() +
     theme(
-      plot.title      = element_text(hjust = 0.5, face = "bold"),
-      plot.caption    = element_text(hjust = 0.5, color = "grey40", size = 8),
+      # "plot" (not the default "panel") so a long title centers over the
+      # full device width, including the legend's horizontal space -- at
+      # "panel" a long title centers over just the (legend-narrowed) panel
+      # and overflows past the left edge of the device, where it's clipped
+      # (no such room on the right, which just extends harmlessly into the
+      # legend's own whitespace).
+      plot.title.position = "plot",
+      plot.title      = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+      plot.caption    = element_text(hjust = 0.5, color = "#1B2A1F", size = 8, face = "bold",
+                                      margin = margin(t = 10)),
       legend.position = "right",
-      axis.text       = element_text(size = 7)
+      legend.title    = element_text(face = "bold", color = "#1B2A1F"),
+      legend.text     = element_text(face = "bold", color = "#1B2A1F"),
+      axis.title      = element_text(face = "bold", color = "#1B2A1F"),
+      axis.text       = element_text(size = 7, color = "#1B2A1F", face = "bold")
     )
 }

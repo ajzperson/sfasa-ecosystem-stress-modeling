@@ -71,6 +71,12 @@ summary_tbl <- joined |>
 cat("=== Cluster-3 agreement vs. real-world validation rates ===\n")
 print(summary_tbl)
 
+rr_fire   <- summary_tbl$Fire[summary_tbl$group == "Both"] /
+  summary_tbl$Fire[summary_tbl$group == "NDWI-3 only"]
+rr_beetle <- summary_tbl$Beetle[summary_tbl$group == "Both"] /
+  summary_tbl$Beetle[summary_tbl$group == "NDWI-3 only"]
+cat(sprintf("  Relative risk (Both vs NDWI-3 only): Fire %.2fx, Beetle %.2fx\n", rr_fire, rr_beetle))
+
 plot_df <- summary_tbl |>
   pivot_longer(cols = c(Fire, Beetle), names_to = "validator", values_to = "pct") |>
   mutate(validator = factor(validator, levels = c("Fire", "Beetle")))
@@ -83,7 +89,8 @@ group_x_labels <- sprintf("%s\n(n=%s)", group_order, format(group_n[group_order]
 p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.7) +
   geom_text(aes(label = sprintf("%.1f%%", pct)),
-            position = position_dodge(width = 0.75), vjust = -0.4, size = 3) +
+            position = position_dodge(width = 0.75), vjust = -0.4, size = 3, fontface = "bold",
+            color = "#1B2A1F") +
   scale_fill_manual(values = validator_cols, name = NULL) +
   scale_x_discrete(labels = setNames(group_x_labels, group_order)) +
   labs(
@@ -91,19 +98,24 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
     subtitle = sprintf("%% of pixels with each real-world outcome (%s), by whether NDVI and/or NDWI flagged the pixel \"most-stressed\"",
                         if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS)
                         else sprintf("%d-%d", min(VALIDATION_YEARS), max(VALIDATION_YEARS))),
-    x = NULL, y = "% of pixels"
+    x = NULL, y = "% of pixels",
+    caption = sprintf("Relative risk (Both vs NDWI-3 only): Fire %.1f×, Beetle %.1f×", rr_fire, rr_beetle)
   ) +
   theme_bw() +
   theme(
-    plot.title    = element_text(hjust = 0.5, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9),
+    plot.title      = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+    plot.subtitle   = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"),
+    plot.caption    = element_text(hjust = 0.5, size = 13, face = "bold", color = "#1B2A1F",
+                                    margin = margin(t = 14)),
+    axis.title      = element_text(face = "bold", color = "#1B2A1F"),
+    axis.text       = element_text(face = "bold", size = 10, color = "#1B2A1F"),
+    legend.text     = element_text(face = "bold", size = 10, color = "#1B2A1F"),
     legend.position = "top"
   )
 
 out_file <- "pixel_approach/charts/cluster_agreement_validation.pdf"
 ggsave(out_file, plot = p, width = 8, height = 6, dpi = 150)
 cat(sprintf("\n✓ Saved: %s\n", out_file))
-
 # ----------------------------------------------------------------------------
 # Spatial map: where do the three agreement groups fall? Points (even one
 # layer, randomly ordered) still visually blend/overlap at this density --
@@ -140,19 +152,32 @@ map_df <- joined |>
 
 group_n <- setNames(summary_tbl$n, as.character(summary_tbl$group))
 
+# Boundary drawn as a plain polygon (via st_coordinates) on coord_fixed(),
+# not geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect
+# axis.text's color/size but silently ignore face, so bold axis tick labels
+# are unreachable through the normal theme there (see
+# pixel_approach/src/00_study_area_chart.R for the same fix). Degree-
+# formatted breaks/labels (e.g. "121°W", "40°N") are recreated manually
+# since coord_sf normally supplies those automatically.
+boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
+map_lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
+map_lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))
+
 build_group_panel <- function(g) {
   ggplot(filter(map_df, group == g), aes(x = lon, y = lat, width = tile_w, height = LAT_STEP * TILE_SCALE)) +
     geom_tile(fill = group_cols[[g]]) +
-    geom_sf(data = sn_boundary, fill = NA, color = "grey20",
-            linewidth = 0.4, inherit.aes = FALSE) +
-    coord_sf(xlim = range(map_df$lon), ylim = range(map_df$lat)) +
-    scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
+    geom_polygon(data = boundary_xy, aes(x = X, y = Y), fill = NA, color = "grey20",
+                 linewidth = 0.4, inherit.aes = FALSE) +
+    coord_fixed(ratio = 1 / cos(median(map_df$lat) * pi / 180),
+                xlim = range(map_df$lon), ylim = range(map_df$lat)) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 3), labels = map_lon_labels) +
+    scale_y_continuous(labels = map_lat_labels) +
     labs(title = sprintf("%s (n=%s)", g, format(group_n[[g]], big.mark = ",")),
          x = NULL, y = NULL) +
     theme_bw() +
     theme(
-      plot.title = element_text(hjust = 0.5, face = "bold", size = 11),
-      axis.text  = element_text(size = 6)
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 11, color = "#1B2A1F"),
+      axis.text  = element_text(size = 6, color = "#1B2A1F", face = "bold")
     )
 }
 
@@ -162,8 +187,8 @@ p_map <- (panels[[1]] | panels[[2]] | panels[[3]]) +
   plot_annotation(
     title    = "Where NDVI and NDWI Agree / Disagree on Cluster 3 (\"most-stressed\")",
     subtitle = "Each pixel is one real 500m grid cell -- see cluster_agreement_validation.pdf for damage rates",
-    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold"),
-                      plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))
+    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+                      plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
   )
 
 map_out_file <- "pixel_approach/charts/cluster_agreement_map.pdf"

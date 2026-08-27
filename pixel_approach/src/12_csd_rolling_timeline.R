@@ -160,12 +160,16 @@ build_panel <- function(traj, stat_name, ylab, label) {
     geom_vline(xintercept = as.numeric(as.Date("2012-01-01")),
                linetype = "dashed", color = "grey40", linewidth = 0.4) +
     annotate("text", x = as.Date("2012-02-01"), y = Inf, label = "Drought onset",
-             hjust = 0, vjust = 1.5, size = 2.6, color = "grey40") +
+             hjust = 0, vjust = 1.5, size = 2.6, fontface = "bold", color = "#1B2A1F") +
     geom_line(linewidth = 0.7) +
     scale_color_manual(values = cluster_cols, name = "Stress level", labels = clust_labels) +
     labs(title = label, x = NULL, y = ylab) +
     theme_bw() +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+    theme(plot.title  = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+          axis.title  = element_text(face = "bold", color = "#1B2A1F"),
+          axis.text   = element_text(face = "bold", color = "#1B2A1F"),
+          legend.title = element_text(face = "bold", color = "#1B2A1F"),
+          legend.text  = element_text(face = "bold", color = "#1B2A1F"))
 }
 
 results <- lapply(index_config, build_cluster_trajectories)
@@ -186,8 +190,8 @@ p <- (panels$ndvi_level | panels$ndwi_level) /
   plot_annotation(
     title    = "Rolling CSD Statistics by Cluster, 2005-2014",
     subtitle = "Per-pixel rolling level/r1/skew (WIN=54mo) averaged within each cluster -- level is the real check on whether r1/skew's shape changes reflect actual worsening",
-    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold"),
-                      plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))
+    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+                      plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
   )
 
 out_file <- "pixel_approach/charts/cluster_csd_rolling_timeline.pdf"

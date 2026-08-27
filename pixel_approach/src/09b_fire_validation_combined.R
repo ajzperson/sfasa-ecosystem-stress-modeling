@@ -45,6 +45,11 @@ zonal <- pixels |>
 cat("\n=== Combined: Fire Exposure by Cluster (MTBS moderate+ severity) ===\n")
 print(zonal)
 
+K <- max(zonal$cluster, na.rm = TRUE)
+rr_worst_vs_best <- zonal$pct_burned_validation[zonal$cluster == K] /
+  zonal$pct_burned_validation[zonal$cluster == 1]
+cat(sprintf("  Relative risk (Cluster %d vs 1): %.2fx\n", K, rr_worst_vs_best))
+
 write_csv(pixels, "pixel_approach/data/processed/combined_pixel_fire.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_fire.csv\n")
 
@@ -57,14 +62,20 @@ p_fire <- ggplot(zonal, aes(x = factor(cluster), y = pct_burned_validation,
                             fill = factor(cluster))) +
   geom_col(width = 0.6) +
   geom_text(aes(label = sprintf("%.1f%%", pct_burned_validation)),
-            vjust = -0.3, size = 3.5) +
+            vjust = -0.3, size = 3.5, fontface = "bold", color = "#1B2A1F") +
   scale_fill_manual(values = cluster_cols, guide = "none") +
   scale_x_discrete(labels = cluster_labels) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
-  labs(x = "Cluster", y = "% pixels burned") +
+  labs(x = "Cluster", y = "% pixels burned",
+       caption = sprintf("Relative risk (Cluster %d vs 1): %.1f×", K, rr_worst_vs_best)) +
   theme_bw() +
-  theme(plot.title    = element_text(hjust = 0.5, face = "bold"),
-        plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))
+  theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+        plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"),
+        axis.title.y  = element_text(face = "bold", color = "#1B2A1F"),
+        axis.title.x  = element_text(face = "bold", color = "#1B2A1F", margin = margin(t = 10)),
+        axis.text     = element_text(face = "bold", size = 10, color = "#1B2A1F"),
+        plot.caption  = element_text(hjust = 0.5, size = 14, face = "bold", color = "#1B2A1F",
+                                      margin = margin(t = 14)))
 
 # Title/subtitle only on the standalone chart -- kept off the base p_fire so
 # the panel saved below stays clean for 11b_dashboard_combined.R (matches

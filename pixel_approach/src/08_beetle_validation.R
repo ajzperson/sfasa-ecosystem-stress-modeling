@@ -65,6 +65,10 @@ run_beetle_validation <- function(cfg, beetle_flags) {
   cat(sprintf("\n=== %s: Zonal TPA by Cluster ===\n", cfg$label))
   print(zonal)
 
+  rr_c3_vs_c1 <- zonal$pct_with_mortality[zonal$cluster == 3] /
+    zonal$pct_with_mortality[zonal$cluster == 1]
+  cat(sprintf("  Relative risk (Cluster 3 vs 1): %.2fx\n", rr_c3_vs_c1))
+
   write_csv(pixels, cfg$out_csv)
   cat(sprintf("✓ Saved: %s\n", cfg$out_csv))
 
@@ -77,16 +81,22 @@ run_beetle_validation <- function(cfg, beetle_flags) {
     geom_col(width = 0.6) +
     geom_text(aes(label = sprintf("%.1f%%\n(%.1f TPA)",
                                   pct_with_mortality, mean_tpa_all)),
-              vjust = -0.3, size = 3.5) +
+              vjust = -0.3, size = 3.5, fontface = "bold", color = "#1B2A1F") +
     scale_fill_manual(values = cluster_cols, guide = "none") +
     scale_x_discrete(labels = cluster_labels) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.22))) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.28))) +
     labs(
       title = cfg$label,
-      x = "Cluster", y = "% pixels with beetle mortality"
+      x = "Cluster", y = "% pixels with beetle mortality",
+      caption = sprintf("Relative risk (Cluster 3 vs 1): %.1f×", rr_c3_vs_c1)
     ) +
     theme_bw() +
-    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+    theme(plot.title   = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+          axis.title.y = element_text(face = "bold", color = "#1B2A1F"),
+          axis.title.x = element_text(face = "bold", color = "#1B2A1F", margin = margin(t = 10)),
+          axis.text    = element_text(face = "bold", size = 10, color = "#1B2A1F"),
+          plot.caption = element_text(hjust = 0.5, size = 14, face = "bold", color = "#1B2A1F",
+                                       margin = margin(t = 14)))
 
   list(zonal = zonal, plot = p_tpa)
 }
@@ -97,8 +107,8 @@ p_combined <- (results$ndvi$plot + results$ndwi$plot) +
   plot_annotation(
     title    = sprintf("USFS ADS Beetle Mortality by CSD Cluster (%s)", year_label),
     subtitle = "% of pixels with bark beetle mortality (mean TPA shown for reference) — ground-truth validation, after cluster assignment",
-    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold"),
-                      plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 9))
+    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+                      plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
   )
 
 ggsave(OUT_CHART, plot = p_combined, width = 12, height = 5, dpi = 150)

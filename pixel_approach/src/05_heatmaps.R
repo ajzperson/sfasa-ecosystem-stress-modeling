@@ -31,14 +31,26 @@ d_ndwi <- read_csv("pixel_approach/data/processed/ndwi_pixel_tau.csv",
 
 sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
 
+# Boundary outline extracted to plain XY once, reused by every panel below
+# instead of geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect
+# axis.text's color/size but silently ignore face, so bold axis tick labels
+# are unreachable through the normal theme there (see
+# pixel_approach/src/00_study_area_chart.R for the same fix, with the same
+# verification that sn_boundary is a single POLYGON with no holes). Degree-
+# formatted breaks/labels (e.g. "121°W", "40°N") are recreated manually since
+# coord_sf normally supplies those automatically.
+boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
+lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
+lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))
+
 plot_heatmap <- function(data, col, panel_title, low_col, high_col,
                           limits = NULL, legend_name = col,
                           legend_breaks = waiver(), legend_labels = waiver(),
                           legend_reverse = FALSE, diverging = TRUE) {
   ggplot(data, aes(x = lon, y = lat, color = .data[[col]])) +
     geom_point(size = 0.05, alpha = 0.6) +
-    geom_sf(data = sn_boundary, fill = NA, color = "grey30",
-            linewidth = 0.4, inherit.aes = FALSE) +
+    geom_polygon(data = boundary_xy, aes(x = X, y = Y), fill = NA, color = "grey30",
+                 linewidth = 0.4, inherit.aes = FALSE) +
     (if (diverging) {
       scale_color_gradient2(
         low      = low_col,
@@ -64,17 +76,22 @@ plot_heatmap <- function(data, col, panel_title, low_col, high_col,
         guide  = guide_colorbar(reverse = legend_reverse)
       )
     }) +
-    coord_sf(
-      xlim = range(data$lon),
-      ylim = range(data$lat)
+    coord_fixed(
+      ratio = 1 / cos(median(data$lat) * pi / 180),
+      xlim  = range(data$lon),
+      ylim  = range(data$lat)
     ) +
-    scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 3), labels = lon_labels) +
+    scale_y_continuous(labels = lat_labels) +
     labs(title = panel_title, x = "Longitude", y = "Latitude") +
     theme_bw() +
     theme(
-      plot.title      = element_text(hjust = 0.5, face = "bold"),
+      plot.title      = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
       legend.position = "right",
-      axis.text       = element_text(size = 7)
+      legend.title    = element_text(face = "bold", size = 11, color = "#1B2A1F"),
+      legend.text     = element_text(face = "bold", size = 10, color = "#1B2A1F"),
+      axis.title      = element_text(face = "bold", color = "#1B2A1F"),
+      axis.text       = element_text(face = "bold", size = 10, color = "#1B2A1F")
     )
 }
 
@@ -83,7 +100,7 @@ save_combined <- function(p_ndvi, p_ndwi, title, out_file, collect_guides = TRUE
     plot_layout(guides = if (collect_guides) "collect" else "keep") +
     plot_annotation(
       title = title,
-      theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+      theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"))
     )
   ggsave(out_file, plot = p, width = 14, height = 7, dpi = 150)
   cat(sprintf("✓ Saved: %s\n", out_file))

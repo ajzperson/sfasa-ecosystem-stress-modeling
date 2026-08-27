@@ -45,13 +45,29 @@ cat(sprintf("✓ Inset window: %d pixels\n", nrow(zoom_pixels)))
 
 # --- Main panel: full study boundary, with a locator box showing where the
 # zoomed inset is drawn from ---
+#
+# Plotted as a plain polygon (via st_coordinates) on coord_fixed(), not
+# geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect axis.text's
+# color/size but silently ignore face, so bold axis tick labels are
+# unreachable through the normal theme there. sn_boundary is a single
+# POLYGON with no holes (verified: one ring), so this direct XY extraction is
+# lossless. Degree-formatted breaks/labels (e.g. "121°W", "40°N") are
+# recreated manually since coord_sf normally supplies those automatically.
+boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
+
+lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
+lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))
+
 p_main <- ggplot() +
-  geom_sf(data = sn_boundary, fill = "#DCEEDC", color = "grey20", linewidth = 0.5) +
+  geom_polygon(data = boundary_xy, aes(x = X, y = Y),
+               fill = "#DCEEDC", color = "grey20", linewidth = 0.5) +
   annotate("rect",
            xmin = center_lon - zoom_half_deg, xmax = center_lon + zoom_half_deg,
            ymin = center_lat - zoom_half_deg, ymax = center_lat + zoom_half_deg,
            fill = NA, color = ZOOM_COLOR, linewidth = 0.6) +
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 3)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 3), labels = lon_labels) +
+  scale_y_continuous(labels = lat_labels) +
+  coord_fixed(ratio = 1 / cos(center_lat * pi / 180)) +
   labs(
     title    = "Sierra Nevada Ecoregion Study Area",
     subtitle = sprintf("%s km² · %s pixels (\"500m\" MODIS grid cells, actually ~463m)",
@@ -60,8 +76,10 @@ p_main <- ggplot() +
   ) +
   theme_bw() +
   theme(
-    plot.title    = element_text(hjust = 0.5, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, color = "grey40")
+    plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+    plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", face = "bold"),
+    axis.title    = element_text(face = "bold", color = "#1B2A1F"),
+    axis.text     = element_text(face = "bold", color = "#1B2A1F")
   )
 
 p_inset <- ggplot(zoom_pixels, aes(x = lon, y = lat, width = tile_w, height = LAT_STEP)) +
@@ -82,9 +100,10 @@ p_inset <- ggplot(zoom_pixels, aes(x = lon, y = lat, width = tile_w, height = LA
   coord_fixed(ratio = 1 / cos(center_lat * pi / 180)) +
   theme_bw() +
   theme(
-    plot.title    = element_text(hjust = 0.5, face = "bold", size = 10),
-    plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = 8),
-    axis.text     = element_text(size = 6),
+    plot.title    = element_text(hjust = 0.5, face = "bold", size = 12, color = "#1B2A1F"),
+    plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", face = "bold", size = 11),
+    axis.title    = element_text(face = "bold", color = "#1B2A1F"),
+    axis.text     = element_text(face = "bold", size = 10, color = "#1B2A1F"),
     panel.border  = element_rect(color = ZOOM_COLOR, linewidth = 1, fill = NA)
   )
 

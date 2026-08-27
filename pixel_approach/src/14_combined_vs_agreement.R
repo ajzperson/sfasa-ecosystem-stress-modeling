@@ -80,6 +80,12 @@ summary_tbl <- d |>
 cat("\n=== Real-world 2015-2016 damage rates by group ===\n")
 print(summary_tbl)
 
+rr_fire   <- summary_tbl$pct_fire[summary_tbl$group == "Both"] /
+  summary_tbl$pct_fire[summary_tbl$group == "Neither"]
+rr_beetle <- summary_tbl$pct_beetle[summary_tbl$group == "Both"] /
+  summary_tbl$pct_beetle[summary_tbl$group == "Neither"]
+cat(sprintf("  Relative risk (Both vs Neither): Fire %.2fx, Beetle %.2fx\n", rr_fire, rr_beetle))
+
 write_csv(d, "pixel_approach/data/processed/combined_vs_agreement.csv")
 cat("\n✓ Saved: pixel_approach/data/processed/combined_vs_agreement.csv\n")
 
@@ -95,18 +101,23 @@ group_x_labels <- sprintf("%s\n(n=%s)", group_order, format(group_n[group_order]
 p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
   geom_col(position = position_dodge(width = 0.75), width = 0.7) +
   geom_text(aes(label = sprintf("%.1f%%", pct)),
-            position = position_dodge(width = 0.75), vjust = -0.4, size = 3) +
+            position = position_dodge(width = 0.75), vjust = -0.4, size = 3, fontface = "bold",
+            color = "#1B2A1F") +
   scale_fill_manual(values = c(Beetle = "#A0522D", Fire = "#ED6623"), name = NULL) +
   scale_x_discrete(labels = setNames(group_x_labels, group_order)) +
   labs(
     title   = "Real 2015-2016 damage rates",
-    caption = "**Both** = (NDVI_3 ∩ NDWI_3) ∩ NDVI+NDWI_4<br>**Neither** = in neither (NDVI_3 ∩ NDWI_3) nor NDVI+NDWI_4",
+    caption = sprintf("**Both** = (NDVI_3 ∩ NDWI_3) ∩ NDVI+NDWI_4<br>**Neither** = in neither (NDVI_3 ∩ NDWI_3) nor NDVI+NDWI_4<br><span style='font-size:18pt'>**Relative risk (Both vs Neither): Fire %.1f×, Beetle %.1f×**</span>", rr_fire, rr_beetle),
     x = NULL, y = "% of pixels"
   ) +
   theme_bw() +
   theme(
-    plot.title   = element_text(hjust = 0.5, face = "bold"),
-    plot.caption = element_markdown(hjust = 0.5, color = "grey20", size = 13),
+    plot.title      = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+    plot.caption    = element_markdown(hjust = 0.5, color = "#1B2A1F", size = 13, face = "bold",
+                                        lineheight = 1.8, margin = margin(t = 14)),
+    axis.title      = element_text(face = "bold", color = "#1B2A1F"),
+    axis.text       = element_text(face = "bold", size = 10, color = "#1B2A1F"),
+    legend.text     = element_text(face = "bold", size = 10, color = "#1B2A1F"),
     legend.position = "top"
   )
 
@@ -132,7 +143,7 @@ build_pie <- function(n_flagged, n_total, flagged_label, wedge_color) {
     coord_polar(theta = "y", start = 0) +
     geom_text(aes(label = sprintf("%.1f%%\n(n=%s)", pct, format(n, big.mark = ","))),
                position = position_stack(vjust = 0.5), size = 3.6, fontface = "bold",
-               color = c("black", "grey30")) +
+               color = "#1B2A1F") +
     # Red family -- #D73027 (the "most-stressed" red used for NDVI+NDWI_4
     # everywhere else in the deck, slides 12-14) is reserved for that one
     # wedge only; NDVI_3 ∩ NDWI_3 gets a lighter tint of the same red so the
@@ -141,7 +152,7 @@ build_pie <- function(n_flagged, n_total, flagged_label, wedge_color) {
     scale_fill_manual(values = setNames(c(wedge_color, "grey85"), c(flagged_label, "Rest")), guide = "none") +
     labs(subtitle = sprintf("Red = **%s**", flagged_label)) +
     theme_void() +
-    theme(plot.subtitle = element_markdown(hjust = 0.5, color = wedge_color, size = 9.5))
+    theme(plot.subtitle = element_markdown(hjust = 0.5, color = wedge_color, size = 10, face = "bold"))
 }
 
 n_total <- nrow(d)
@@ -153,14 +164,16 @@ pie_combined <- build_pie(n_a, n_total, "NDVI+NDWI_4",     "#D73027")
 # (separate clustering is K=3, combined is K=4), so both are each
 # clustering's own top/most-stressed tier, not directly comparable numbers.
 # geom_textbox (ggtext) instead of plain annotate("text", ...) -- it auto-wraps
-# to the given width AND understands markdown, so the term itself (NDVI_3,
-# NDWI_3, NDVI+NDWI_4) can be bolded with **term** while the rest of the
-# definition stays regular weight, all within one text block.
+# to the given width and understands markdown, so the term itself (NDVI_3,
+# NDWI_3, NDVI+NDWI_4) can be marked with **term**; fontface="bold" below
+# makes the whole block (term and definition alike) bold, matching every
+# other text element in the deck.
 build_note <- function(text_md) {
   ggplot() +
     geom_textbox(aes(x = 0.5, y = 0.5, label = text_md),
                  width = unit(1.5, "in"), box.color = NA, fill = NA,
-                 hjust = 0.5, vjust = 0.5, halign = 0.5, size = 3.3) +
+                 hjust = 0.5, vjust = 0.5, halign = 0.5, size = 3.3,
+                 fontface = "bold", color = "#1B2A1F") +
     xlim(0, 1) + ylim(0, 1) +
     theme_void() +
     theme(
@@ -170,7 +183,7 @@ build_note <- function(text_md) {
 }
 
 wrap_def <- function(term, rhs) {
-  sprintf("**%s** = %s", term, rhs)
+  sprintf("**%s = %s**", term, rhs)
 }
 
 note_left <- build_note(paste(

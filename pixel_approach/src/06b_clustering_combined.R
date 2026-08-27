@@ -131,12 +131,11 @@ cat("✓ Saved: pixel_approach/data/processed/combined_pixel_clusters.csv\n")
 p_sweep <- build_k_sweep_panel(sweep_df, K, "NDVI+NDWI-combined") +
   plot_annotation(
     title = sprintf("K-means Hyperparameter Sweep (K = 2-8), Combined NDVI+NDWI Features; selected K = %d shown in red", K),
-    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"))
   )
 
 ggsave("pixel_approach/charts/combined_cluster_k_sweep.pdf", plot = p_sweep, width = 10, height = 4, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_cluster_k_sweep.pdf\n")
-
 # --- Cluster map ---
 p_map <- build_cluster_map_panel(
   d, sn_boundary, cluster_cols, clust_labels,
