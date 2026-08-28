@@ -126,3 +126,12 @@ p_final <- ggdraw() +
 out_file <- "pixel_approach/charts/study_area_pixels.pdf"
 ggsave(out_file, plot = p_final, width = 12, height = 7, dpi = 150)
 cat(sprintf("✓ Saved: %s\n", out_file))
+
+# Also saved as a higher-dpi PNG for slide embedding -- same reasoning as the
+# geom_tile linewidth bump above: Google Slides re-compresses embedded
+# images, and at only 150dpi that can thin out or clip fine detail (a
+# gridline, or a glyph stroke like the underscore in "pixel_id"). More
+# source pixels per glyph survives that recompression better.
+out_file_png <- "pixel_approach/charts/study_area_pixels.png"
+ggsave(out_file_png, plot = p_final, width = 12, height = 7, dpi = 500)
+cat(sprintf("✓ Saved: %s\n", out_file_png))

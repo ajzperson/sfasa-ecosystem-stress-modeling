@@ -127,7 +127,7 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
 # right = the combined-clustering definition (NDVI+NDWI_4). Same total
 # population (n = nrow(d)) in both, so the two circles are directly
 # comparable in size.
-build_pie <- function(n_flagged, n_total, flagged_label, wedge_color) {
+build_pie <- function(n_flagged, n_total, flagged_label, wedge_color, color_label) {
   pie_df <- tibble(
     slice = factor(c(flagged_label, "Rest"), levels = c(flagged_label, "Rest")),
     n     = c(n_flagged, n_total - n_flagged)
@@ -150,14 +150,14 @@ build_pie <- function(n_flagged, n_total, flagged_label, wedge_color) {
     # two pies read as one consistent color family without reusing the
     # reserved hue.
     scale_fill_manual(values = setNames(c(wedge_color, "grey85"), c(flagged_label, "Rest")), guide = "none") +
-    labs(subtitle = sprintf("Red = **%s**", flagged_label)) +
+    labs(subtitle = sprintf("%s = **%s**", color_label, flagged_label)) +
     theme_void() +
     theme(plot.subtitle = element_markdown(hjust = 0.5, color = wedge_color, size = 10, face = "bold"))
 }
 
 n_total <- nrow(d)
-pie_alone    <- build_pie(n_b, n_total, "NDVI_3 ∩ NDWI_3", "#E2655E")
-pie_combined <- build_pie(n_a, n_total, "NDVI+NDWI_4",     "#D73027")
+pie_alone    <- build_pie(n_b, n_total, "NDVI_3 ∩ NDWI_3", "#E2655E", "Light red")
+pie_combined <- build_pie(n_a, n_total, "NDVI+NDWI_4",     "#D73027", "Red")
 
 # Small bordered notes flanking the two circles, spelling out what the
 # cluster-number notation means -- "3" and "4" refer to different K's
