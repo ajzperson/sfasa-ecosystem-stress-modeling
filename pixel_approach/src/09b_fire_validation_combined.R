@@ -9,8 +9,12 @@ source("pixel_approach/src/clustering_helpers.R")
 #
 # Output:
 #   pixel_approach/charts/combined_fire_by_cluster.pdf
+#   pixel_approach/charts/combined_fire_by_cluster_ratio.pdf (same, bars as
+#     ratio vs. Cluster 1 instead of raw %) -- generated in parallel, raw
+#     chart/panel untouched
 #   pixel_approach/data/processed/combined_pixel_fire.csv
 #   pixel_approach/data/processed/panel_fire_combined.rds
+#   pixel_approach/data/processed/panel_fire_combined_ratio.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
@@ -49,6 +53,11 @@ K <- max(zonal$cluster, na.rm = TRUE)
 rr_worst_vs_best <- zonal$pct_burned_validation[zonal$cluster == K] /
   zonal$pct_burned_validation[zonal$cluster == 1]
 cat(sprintf("  Relative risk (Cluster %d vs 1): %.2fx\n", K, rr_worst_vs_best))
+
+# Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
+# Cluster 1 is 1.00x by construction.
+zonal <- zonal |>
+  mutate(ratio_to_c1 = pct_burned_validation / pct_burned_validation[cluster == 1])
 
 write_csv(pixels, "pixel_approach/data/processed/combined_pixel_fire.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_fire.csv\n")
@@ -89,7 +98,33 @@ p_fire_standalone <- p_fire +
 ggsave("pixel_approach/charts/combined_fire_by_cluster.pdf", plot = p_fire_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_fire_by_cluster.pdf\n")
 
+p_fire_ratio <- ggplot(zonal, aes(x = factor(cluster), y = ratio_to_c1,
+                                  fill = factor(cluster))) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = sprintf("%.2f×", ratio_to_c1)),
+            vjust = -0.3, size = 3.5, fontface = "bold", color = "#1B2A1F") +
+  scale_fill_manual(values = cluster_cols, guide = "none") +
+  scale_x_discrete(labels = cluster_labels) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(x = "Cluster", y = "% pixels burned, ratio vs. Cluster 1") +
+  theme_bw() +
+  theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+        plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"),
+        axis.title.y  = element_text(face = "bold", color = "#1B2A1F"),
+        axis.title.x  = element_text(face = "bold", color = "#1B2A1F", margin = margin(t = 10)),
+        axis.text     = element_text(face = "bold", size = 10, color = "#1B2A1F"))
+
+p_fire_ratio_standalone <- p_fire_ratio +
+  labs(title    = sprintf("MTBS Moderate+ Burn Severity by Combined Cluster (%s)", year_label),
+       subtitle = "% of pixels burned (severity >= moderate), as a ratio vs. Cluster 1 (least-stressed) — ground-truth validation, after cluster assignment")
+
+ggsave("pixel_approach/charts/combined_fire_by_cluster_ratio.pdf", plot = p_fire_ratio_standalone, width = 7, height = 5, dpi = 150)
+cat("✓ Saved: pixel_approach/charts/combined_fire_by_cluster_ratio.pdf\n")
+
 # Saved separately so 11b_dashboard_combined.R can assemble a one-page
 # summary without duplicating this plotting code.
 saveRDS(p_fire, "pixel_approach/data/processed/panel_fire_combined.rds")
 cat("✓ Saved: pixel_approach/data/processed/panel_fire_combined.rds\n")
+
+saveRDS(p_fire_ratio, "pixel_approach/data/processed/panel_fire_combined_ratio.rds")
+cat("✓ Saved: pixel_approach/data/processed/panel_fire_combined_ratio.rds\n")

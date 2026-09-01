@@ -22,6 +22,11 @@ source("pixel_approach/src/clustering_helpers.R")
 # Output:
 #   pixel_approach/charts/dashboard_ndvi.pdf
 #   pixel_approach/charts/dashboard_ndwi.pdf
+#   pixel_approach/charts/dashboard_ndvi_ratio.pdf (same layout, fire/beetle
+#     bars as ratio vs. Cluster 1 instead of raw %) -- generated in parallel
+#     from panel_fire_<idx>_ratio.rds/panel_beetle_<idx>_ratio.rds, raw
+#     dashboards untouched
+#   pixel_approach/charts/dashboard_ndwi_ratio.pdf
 
 sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
 
@@ -83,25 +88,29 @@ build_map_panel <- function(clusters_path, label) {
 
 index_config <- list(
   ndvi = list(clusters_path = "pixel_approach/data/processed/ndvi_pixel_clusters.csv",
-              label = "NDVI", out = "pixel_approach/charts/dashboard_ndvi.pdf"),
+              label = "NDVI", out = "pixel_approach/charts/dashboard_ndvi.pdf",
+              out_ratio = "pixel_approach/charts/dashboard_ndvi_ratio.pdf"),
   ndwi = list(clusters_path = "pixel_approach/data/processed/ndwi_pixel_clusters.csv",
-              label = "NDWI", out = "pixel_approach/charts/dashboard_ndwi.pdf")
+              label = "NDWI", out = "pixel_approach/charts/dashboard_ndwi.pdf",
+              out_ratio = "pixel_approach/charts/dashboard_ndwi_ratio.pdf")
 )
 
-build_dashboard <- function(cfg, idx) {
-  cat(sprintf("Building dashboard for %s...\n", cfg$label))
+build_dashboard <- function(cfg, idx, ratio = FALSE) {
+  cat(sprintf("Building dashboard for %s%s...\n", cfg$label, if (ratio) " (ratio)" else ""))
 
   map_panel <- build_map_panel(cfg$clusters_path, cfg$label)
+
+  suffix <- if (ratio) "_ratio" else ""
 
   # Extra bottom/top margin here (not baked into the saved panels, which are
   # also reused standalone in fire_by_cluster.pdf/beetle_tpa_by_cluster.pdf
   # where this gap isn't needed) -- gives the bold "Relative risk" caption at
   # the foot of fire_panel room to breathe before beetle_panel's title starts,
   # which patchwork's "/" stacking doesn't add on its own.
-  fire_panel   <- readRDS(sprintf("pixel_approach/data/processed/panel_fire_%s.rds", idx)) +
+  fire_panel   <- readRDS(sprintf("pixel_approach/data/processed/panel_fire_%s%s.rds", idx, suffix)) +
     labs(title = "Fire (MTBS)") +
     theme(plot.margin = margin(t = 5.5, r = 5.5, b = 34, l = 5.5))
-  beetle_panel <- readRDS(sprintf("pixel_approach/data/processed/panel_beetle_%s.rds", idx)) +
+  beetle_panel <- readRDS(sprintf("pixel_approach/data/processed/panel_beetle_%s%s.rds", idx, suffix)) +
     labs(title = "Beetle (USFS ADS)") +
     theme(plot.margin = margin(t = 28, r = 5.5, b = 5.5, l = 5.5))
 
@@ -110,17 +119,20 @@ build_dashboard <- function(cfg, idx) {
   # leaving the map row mostly blank on the sides. Placing the map beside a
   # stacked bar column instead pairs complementary shapes, filling a landscape
   # canvas with far less dead space.
+  title_suffix <- if (ratio) " (Ratio vs. Cluster 1)" else ""
   p <- ((map_panel) | (fire_panel / beetle_panel)) +
     plot_layout(widths = c(1, 1)) +
     plot_annotation(
-      title = sprintf("%s: Cluster Map + Real-World Validation Summary", cfg$label),
+      title = sprintf("%s: Cluster Map + Real-World Validation Summary%s", cfg$label, title_suffix),
       theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16, color = "#1B2A1F"))
     )
 
-  ggsave(cfg$out, plot = p, width = 13, height = 7.5, dpi = 150)
-  cat(sprintf("✓ Saved: %s\n", cfg$out))
+  out <- if (ratio) cfg$out_ratio else cfg$out
+  ggsave(out, plot = p, width = 13, height = 7.5, dpi = 150)
+  cat(sprintf("✓ Saved: %s\n", out))
 }
 
 for (idx in names(index_config)) {
-  build_dashboard(index_config[[idx]], idx)
+  build_dashboard(index_config[[idx]], idx, ratio = FALSE)
+  build_dashboard(index_config[[idx]], idx, ratio = TRUE)
 }

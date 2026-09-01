@@ -22,6 +22,10 @@ source("pixel_approach/src/clustering_helpers.R")
 #
 # Output:
 #   pixel_approach/charts/dashboard_combined.pdf
+#   pixel_approach/charts/dashboard_combined_ratio.pdf (same layout,
+#     fire/beetle bars as ratio vs. Cluster 1 instead of raw %) -- generated
+#     in parallel from panel_fire_combined_ratio.rds/
+#     panel_beetle_combined_ratio.rds, raw dashboard untouched
 
 sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
 
@@ -80,35 +84,43 @@ build_map_panel <- function(d) {
     )
 }
 
-cat("Building combined dashboard...\n")
+build_combined_dashboard <- function(ratio = FALSE) {
+  cat(sprintf("Building combined dashboard%s...\n", if (ratio) " (ratio)" else ""))
 
-map_panel <- build_map_panel(pixels)
+  map_panel <- build_map_panel(pixels)
 
-# Extra bottom/top margin here (not baked into the saved panels, which are
-# also reused standalone in combined_fire_by_cluster.pdf/
-# combined_beetle_tpa_by_cluster.pdf where this gap isn't needed) -- gives
-# the bold "Relative risk" caption at the foot of fire_panel room to breathe
-# before beetle_panel's title starts, which patchwork's "/" stacking doesn't
-# add on its own.
-fire_panel   <- readRDS("pixel_approach/data/processed/panel_fire_combined.rds") +
-  labs(title = "Fire (MTBS)") +
-  theme(plot.margin = margin(t = 5.5, r = 5.5, b = 34, l = 5.5))
-beetle_panel <- readRDS("pixel_approach/data/processed/panel_beetle_combined.rds") +
-  labs(title = "Beetle (USFS ADS)") +
-  theme(plot.margin = margin(t = 28, r = 5.5, b = 5.5, l = 5.5))
+  suffix <- if (ratio) "_ratio" else ""
 
-# Map is tall/narrow (Sierra Nevada's geographic extent), bars are wide/short
-# -- stacking them (map above bars) forces both into the same column width,
-# leaving the map row mostly blank on the sides. Placing the map beside a
-# stacked bar column instead pairs complementary shapes, filling a landscape
-# canvas with far less dead space. Same reasoning as 11_dashboard.R.
-p <- ((map_panel) | (fire_panel / beetle_panel)) +
-  plot_layout(widths = c(1, 1)) +
-  plot_annotation(
-    title = "NDVI+NDWI-combined: Cluster Map + Real-World Validation Summary",
-    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16, color = "#1B2A1F"))
-  )
+  # Extra bottom/top margin here (not baked into the saved panels, which are
+  # also reused standalone in combined_fire_by_cluster.pdf/
+  # combined_beetle_tpa_by_cluster.pdf where this gap isn't needed) -- gives
+  # the bold "Relative risk" caption at the foot of fire_panel room to breathe
+  # before beetle_panel's title starts, which patchwork's "/" stacking doesn't
+  # add on its own.
+  fire_panel   <- readRDS(sprintf("pixel_approach/data/processed/panel_fire_combined%s.rds", suffix)) +
+    labs(title = "Fire (MTBS)") +
+    theme(plot.margin = margin(t = 5.5, r = 5.5, b = 34, l = 5.5))
+  beetle_panel <- readRDS(sprintf("pixel_approach/data/processed/panel_beetle_combined%s.rds", suffix)) +
+    labs(title = "Beetle (USFS ADS)") +
+    theme(plot.margin = margin(t = 28, r = 5.5, b = 5.5, l = 5.5))
 
-out_file <- "pixel_approach/charts/dashboard_combined.pdf"
-ggsave(out_file, plot = p, width = 13, height = 7.5, dpi = 150)
-cat(sprintf("✓ Saved: %s\n", out_file))
+  # Map is tall/narrow (Sierra Nevada's geographic extent), bars are wide/short
+  # -- stacking them (map above bars) forces both into the same column width,
+  # leaving the map row mostly blank on the sides. Placing the map beside a
+  # stacked bar column instead pairs complementary shapes, filling a landscape
+  # canvas with far less dead space. Same reasoning as 11_dashboard.R.
+  title_suffix <- if (ratio) " (Ratio vs. Cluster 1)" else ""
+  p <- ((map_panel) | (fire_panel / beetle_panel)) +
+    plot_layout(widths = c(1, 1)) +
+    plot_annotation(
+      title = sprintf("NDVI+NDWI-combined: Cluster Map + Real-World Validation Summary%s", title_suffix),
+      theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16, color = "#1B2A1F"))
+    )
+
+  out_file <- sprintf("pixel_approach/charts/dashboard_combined%s.pdf", suffix)
+  ggsave(out_file, plot = p, width = 13, height = 7.5, dpi = 150)
+  cat(sprintf("✓ Saved: %s\n", out_file))
+}
+
+build_combined_dashboard(ratio = FALSE)
+build_combined_dashboard(ratio = TRUE)

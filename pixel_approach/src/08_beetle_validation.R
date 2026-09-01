@@ -13,6 +13,9 @@ source("pixel_approach/src/clustering_helpers.R")
 #
 # Output:
 #   pixel_approach/charts/beetle_tpa_by_cluster.pdf (NDVI + NDWI side by side)
+#   pixel_approach/charts/beetle_tpa_by_cluster_ratio.pdf (same, bars as ratio
+#     vs. Cluster 1 instead of raw %) -- generated in parallel, raw
+#     chart/panels untouched
 #   pixel_approach/data/processed/pixel_beetle_tpa_ndvi.csv
 #   pixel_approach/data/processed/pixel_beetle_tpa_ndwi.csv
 
@@ -20,7 +23,8 @@ VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
   sprintf("%d-%d", min(VALIDATION_YEARS), max(VALIDATION_YEARS))
 
-OUT_CHART <- "pixel_approach/charts/beetle_tpa_by_cluster.pdf"
+OUT_CHART       <- "pixel_approach/charts/beetle_tpa_by_cluster.pdf"
+OUT_CHART_RATIO <- "pixel_approach/charts/beetle_tpa_by_cluster_ratio.pdf"
 
 index_config <- list(
   ndvi = list(pixel_path = "pixel_approach/data/processed/ndvi_pixel_clusters.csv",
@@ -69,6 +73,11 @@ run_beetle_validation <- function(cfg, beetle_flags) {
     zonal$pct_with_mortality[zonal$cluster == 1]
   cat(sprintf("  Relative risk (Cluster 3 vs 1): %.2fx\n", rr_c3_vs_c1))
 
+  # Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
+  # Cluster 1 is 1.00x by construction.
+  zonal <- zonal |>
+    mutate(ratio_to_c1 = pct_with_mortality / pct_with_mortality[cluster == 1])
+
   write_csv(pixels, cfg$out_csv)
   cat(sprintf("✓ Saved: %s\n", cfg$out_csv))
 
@@ -98,7 +107,25 @@ run_beetle_validation <- function(cfg, beetle_flags) {
           plot.caption = element_text(hjust = 0.5, size = 14, face = "bold", color = "#1B2A1F",
                                        margin = margin(t = 14)))
 
-  list(zonal = zonal, plot = p_tpa)
+  p_tpa_ratio <- ggplot(zonal, aes(x = factor(cluster), y = ratio_to_c1,
+                              fill = factor(cluster))) +
+    geom_col(width = 0.6) +
+    geom_text(aes(label = sprintf("%.2f×", ratio_to_c1)),
+              vjust = -0.3, size = 3.5, fontface = "bold", color = "#1B2A1F") +
+    scale_fill_manual(values = cluster_cols, guide = "none") +
+    scale_x_discrete(labels = cluster_labels) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+    labs(
+      title = cfg$label,
+      x = "Cluster", y = "% pixels w/ beetle mortality, ratio vs. Cluster 1"
+    ) +
+    theme_bw() +
+    theme(plot.title   = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+          axis.title.y = element_text(face = "bold", color = "#1B2A1F"),
+          axis.title.x = element_text(face = "bold", color = "#1B2A1F", margin = margin(t = 10)),
+          axis.text    = element_text(face = "bold", size = 10, color = "#1B2A1F"))
+
+  list(zonal = zonal, plot = p_tpa, plot_ratio = p_tpa_ratio)
 }
 
 results <- lapply(index_config, run_beetle_validation, beetle_flags = beetle_flags)
@@ -114,10 +141,25 @@ p_combined <- (results$ndvi$plot + results$ndwi$plot) +
 ggsave(OUT_CHART, plot = p_combined, width = 12, height = 5, dpi = 150)
 cat(sprintf("✓ Saved: %s\n", OUT_CHART))
 
+p_combined_ratio <- (results$ndvi$plot_ratio + results$ndwi$plot_ratio) +
+  plot_annotation(
+    title    = sprintf("USFS ADS Beetle Mortality by CSD Cluster (%s)", year_label),
+    subtitle = "% of pixels with bark beetle mortality, as a ratio vs. Cluster 1 (least-stressed) — ground-truth validation, after cluster assignment",
+    theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
+                      plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
+  )
+
+ggsave(OUT_CHART_RATIO, plot = p_combined_ratio, width = 12, height = 5, dpi = 150)
+cat(sprintf("✓ Saved: %s\n", OUT_CHART_RATIO))
+
 # Individual per-index panels, saved separately so 11_dashboard.R can
 # assemble a one-page-per-index summary without duplicating this plotting code.
 for (idx in names(index_config)) {
   panel_path <- sprintf("pixel_approach/data/processed/panel_beetle_%s.rds", idx)
   saveRDS(results[[idx]]$plot, panel_path)
   cat(sprintf("✓ Saved: %s\n", panel_path))
+
+  panel_path_ratio <- sprintf("pixel_approach/data/processed/panel_beetle_%s_ratio.rds", idx)
+  saveRDS(results[[idx]]$plot_ratio, panel_path_ratio)
+  cat(sprintf("✓ Saved: %s\n", panel_path_ratio))
 }
