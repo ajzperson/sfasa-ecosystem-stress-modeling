@@ -6,7 +6,8 @@ library(patchwork)
 # Load only plot_heatmap()/save_combined() and sn_boundary from
 # 05_heatmaps.R, skipping the real d_ndvi/d_ndwi CSV loads (large, and
 # unnecessary -- these tests use small synthetic data instead) and
-# stopping before the four real save_combined(...) calls at the bottom.
+# stopping before the three real save_combined(...) calls at the bottom
+# (a fourth, for Actual_Drop, is commented out/deprioritized in the source).
 exprs    <- parse("../src/05_heatmaps.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_data_loads <- grepl("ndvi_pixel_tau\\.csv|ndwi_pixel_tau\\.csv", src_text)

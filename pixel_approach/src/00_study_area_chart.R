@@ -3,16 +3,12 @@ library(sf)
 library(patchwork)
 library(cowplot)
 
-# Overview chart: the Sierra Nevada study boundary (from
-# 00_process_ecoregion.R), the total pixel count, and a zoomed-in inset
-# showing actual 500m pixel tiles at true relative scale, to make concrete
-# what "one pixel" means in this pipeline. Pixel definition matches
-# pixel_approach/docs/DESIGN.md: one 500m MODIS grid cell (NDVI's and
-# NDWI's native resolution) within the Sierra Nevada boundary, identified
-# by pixel_id (row position in every matrix/CSV) and a fixed lon/lat
-# centroid, both set once in pixel_metadata.csv.
+# Plots the Sierra Nevada study boundary and pixel count, with a zoomed inset
+# of individual 500m pixel tiles at true relative scale.
 #
 # Output: pixel_approach/charts/study_area_pixels.pdf
+#         pixel_approach/charts/study_area_pixels.png (higher-dpi, for
+#         slide embedding)
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 
@@ -23,14 +19,8 @@ area_km2    <- round(as.numeric(st_area(st_transform(sn_boundary, 3310))) / 1e6,
 
 cat(sprintf("✓ %s pixels across %s km²\n", format(n_pixels, big.mark = ","), format(area_km2, big.mark = ",")))
 
-# --- Zoom window definition, computed first so the main panel can show
-# where it is. Centered on the data's own median centroid (guaranteed to
-# land in a real, populated part of the domain, unlike a bounding-box
-# midpoint which can fall in a gap for an elongated shape like the Sierra
-# Nevada). Tile width/height match the exact-size pixel-tile approach
-# already used in pixel_approach/src/13_cluster_agreement_validation.R
-# (LAT_STEP = 0.004167deg =~ 500m; longitude spacing widens toward the
-# equator, so tile width is computed per pixel from its own latitude).
+# Median centroid, not bounding-box midpoint, avoids landing in an empty gap.
+# LAT_STEP =~ 500m.
 LAT_STEP <- 0.004167
 center_lon <- median(pixel_meta$lon)
 center_lat <- median(pixel_meta$lat)
@@ -43,16 +33,8 @@ zoom_pixels <- pixel_meta |>
   mutate(tile_w = LAT_STEP / cos(lat * pi / 180))
 cat(sprintf("✓ Inset window: %d pixels\n", nrow(zoom_pixels)))
 
-# --- Main panel: full study boundary, with a locator box showing where the
-# zoomed inset is drawn from ---
-#
-# Plotted as a plain polygon (via st_coordinates) on coord_fixed(), not
-# geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect axis.text's
-# color/size but silently ignore face, so bold axis tick labels are
-# unreachable through the normal theme there. sn_boundary is a single
-# POLYGON with no holes (verified: one ring), so this direct XY extraction is
-# lossless. Degree-formatted breaks/labels (e.g. "121°W", "40°N") are
-# recreated manually since coord_sf normally supplies those automatically.
+# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
+# ignore theme's bold face, so degree labels are recreated manually.
 boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
 
 lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
@@ -83,20 +65,16 @@ p_main <- ggplot() +
   )
 
 p_inset <- ggplot(zoom_pixels, aes(x = lon, y = lat, width = tile_w, height = LAT_STEP)) +
-  # linewidth thicker than a typical hairline -- thin gridlines are prone to
-  # disappearing when Slides/Google Slides re-compresses the embedded image,
-  # even though they render fine in Keynote/LibreOffice/PowerPoint.
+  # Thicker than a hairline -- thin gridlines vanish under Slides' image
+  # recompression.
   geom_tile(fill = "#4DAF4A", color = "white", linewidth = 0.4) +
   labs(
     title = "Zoomed: individual pixels (\"500m\", actually ~463m)",
     subtitle = "Each tile = one pixel, identified by pixel_id\nand a fixed lon/lat centroid",
     x = "Longitude", y = "Latitude"
   ) +
-  # A degree of longitude and a degree of latitude aren't the same ground
-  # distance -- coord_fixed()'s default 1:1 ratio would render these
-  # already-ground-square tiles as rectangles. Correcting by 1/cos(lat)
-  # (longitude degrees are worth cos(lat) as much ground distance as
-  # latitude degrees at this latitude) restores true square tiles on screen.
+  # 1/cos(lat) corrects for longitude degrees covering less ground distance
+  # than latitude degrees, so these ground-square tiles render square.
   coord_fixed(ratio = 1 / cos(center_lat * pi / 180)) +
   theme_bw() +
   theme(
@@ -110,11 +88,8 @@ p_inset <- ggplot(zoom_pixels, aes(x = lon, y = lat, width = tile_w, height = LA
 p <- (p_main | p_inset) +
   plot_layout(widths = c(1.3, 1))
 
-# Arrow connecting the locator box to the inset panel, so the "zoom in"
-# relationship reads at a glance. Endpoints are figure-fraction (npc)
-# coordinates measured directly off the rendered composite -- right edge of
-# the locator box to the left edge of the inset panel, at their shared
-# vertical center.
+# Arrow from locator box to inset, so the "zoom in" relationship reads at a
+# glance. Endpoints are npc coords measured off the rendered composite.
 p_final <- ggdraw() +
   draw_plot(p) +
   draw_line(
@@ -127,11 +102,8 @@ out_file <- "pixel_approach/charts/study_area_pixels.pdf"
 ggsave(out_file, plot = p_final, width = 12, height = 7, dpi = 150)
 cat(sprintf("✓ Saved: %s\n", out_file))
 
-# Also saved as a higher-dpi PNG for slide embedding -- same reasoning as the
-# geom_tile linewidth bump above: Google Slides re-compresses embedded
-# images, and at only 150dpi that can thin out or clip fine detail (a
-# gridline, or a glyph stroke like the underscore in "pixel_id"). More
-# source pixels per glyph survives that recompression better.
+# Higher-dpi PNG for slide embedding -- 150dpi lets Slides' recompression
+# clip fine detail (gridlines, glyph strokes like "pixel_id"'s underscore).
 out_file_png <- "pixel_approach/charts/study_area_pixels.png"
 ggsave(out_file_png, plot = p_final, width = 12, height = 7, dpi = 500)
 cat(sprintf("✓ Saved: %s\n", out_file_png))

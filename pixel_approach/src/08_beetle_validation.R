@@ -5,7 +5,7 @@ source("pixel_approach/src/clustering_helpers.R")
 
 # Cross-validates K-means clusters against USFS ADS beetle-kill mortality
 # (extracted in 02e_pixel_beetle.R, independent of clustering) -- same role
-# as 09_fire_validation.R / 10_lcmap_validation.R.
+# as 09_fire_validation.R.
 #
 # Validation window (VALIDATION_YEARS below, default 2015-2016) -- the raw
 # ADS data itself only has usable LEGACY_TPA for 2015-2016 (see 02e for why
@@ -57,11 +57,12 @@ run_beetle_validation <- function(cfg, beetle_flags) {
   zonal <- pixels |>
     group_by(cluster) |>
     summarise(
-      n_pixels           = n(),
-      n_with_mortality   = sum(any_mortality),
-      pct_with_mortality = round(100 * mean(any_mortality), 1),
-      mean_tpa_affected  = round(mean(tpa[any_mortality], na.rm = TRUE), 1),
-      mean_tpa_all       = round(mean(tpa, na.rm = TRUE), 1),
+      n_pixels                 = n(),
+      n_with_mortality         = sum(any_mortality),
+      pct_with_mortality_exact = 100 * mean(any_mortality),
+      pct_with_mortality       = round(pct_with_mortality_exact, 1),
+      mean_tpa_affected        = round(mean(tpa[any_mortality], na.rm = TRUE), 1),
+      mean_tpa_all             = round(mean(tpa, na.rm = TRUE), 1),
       .groups = "drop"
     ) |>
     arrange(as.integer(cluster))
@@ -69,14 +70,19 @@ run_beetle_validation <- function(cfg, beetle_flags) {
   cat(sprintf("\n=== %s: Zonal TPA by Cluster ===\n", cfg$label))
   print(zonal)
 
-  rr_c3_vs_c1 <- zonal$pct_with_mortality[zonal$cluster == 3] /
-    zonal$pct_with_mortality[zonal$cluster == 1]
+  # Relative risk and ratio_to_c1 are computed from the unrounded rate
+  # (pct_with_mortality_exact), not the 1-decimal display value -- dividing
+  # already-rounded percentages compounds their rounding error into the
+  # ratio (e.g. a 2.9%/1.8% pair that's really 2.85/1.85 would read 1.61x
+  # instead of the true 1.54x).
+  rr_c3_vs_c1 <- zonal$pct_with_mortality_exact[zonal$cluster == 3] /
+    zonal$pct_with_mortality_exact[zonal$cluster == 1]
   cat(sprintf("  Relative risk (Cluster 3 vs 1): %.2fx\n", rr_c3_vs_c1))
 
   # Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
   # Cluster 1 is 1.00x by construction.
   zonal <- zonal |>
-    mutate(ratio_to_c1 = pct_with_mortality / pct_with_mortality[cluster == 1])
+    mutate(ratio_to_c1 = pct_with_mortality_exact / pct_with_mortality_exact[cluster == 1])
 
   write_csv(pixels, cfg$out_csv)
   cat(sprintf("✓ Saved: %s\n", cfg$out_csv))
@@ -133,7 +139,7 @@ results <- lapply(index_config, run_beetle_validation, beetle_flags = beetle_fla
 p_combined <- (results$ndvi$plot + results$ndwi$plot) +
   plot_annotation(
     title    = sprintf("USFS ADS Beetle Mortality by CSD Cluster (%s)", year_label),
-    subtitle = "% of pixels with bark beetle mortality (mean TPA shown for reference) — ground-truth validation, after cluster assignment",
+    subtitle = "% of pixels with bark beetle mortality (mean TPA shown for reference) — ground-truth evaluation, after cluster assignment",
     theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
                       plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
   )
@@ -144,7 +150,7 @@ cat(sprintf("✓ Saved: %s\n", OUT_CHART))
 p_combined_ratio <- (results$ndvi$plot_ratio + results$ndwi$plot_ratio) +
   plot_annotation(
     title    = sprintf("USFS ADS Beetle Mortality by CSD Cluster (%s)", year_label),
-    subtitle = "% of pixels with bark beetle mortality, as a ratio vs. Cluster 1 (least-stressed) — ground-truth validation, after cluster assignment",
+    subtitle = "% of pixels with bark beetle mortality, as a ratio vs. Cluster 1 (least-stressed) — ground-truth evaluation, after cluster assignment",
     theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
                       plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
   )

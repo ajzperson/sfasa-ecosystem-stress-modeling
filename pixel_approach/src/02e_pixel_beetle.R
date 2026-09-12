@@ -2,15 +2,12 @@ library(tidyverse)
 library(sf)
 
 # Extracts USFS ADS bark-beetle mortality (TPA -- trees per acre killed) for
-# every pixel in the shared grid (pixel_metadata.csv) -- independent of
-# clustering, same role as 02c_pixel_fire.R / 02d_pixel_tree_mortality.R.
-#
-# ALL_YEARS stays 2015:2016 -- the raw ADS data itself only has usable
-# LEGACY_TPA for 2015-2016 (near-zero from 2017, none from 2018 on --
-# verified against the raw geodatabase).
+# every pixel in pixel_metadata.csv. ALL_YEARS is fixed at 2015-2016 since
+# the raw ADS data's LEGACY_TPA field is near-zero from 2017 and absent
+# from 2018 on.
 #
 # Output: pixel_approach/data/processed/pixel_beetle.csv
-#   (pixel_id, tpa_2015, tpa_2016)
+#   (pixel_id, tpa_2016, tpa_2015 -- column order follows data, not year)
 
 sf_use_s2(FALSE)   # IDS polygons have self-intersecting edges
 

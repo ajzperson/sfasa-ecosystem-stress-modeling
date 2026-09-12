@@ -3,10 +3,14 @@ library(terra)
 library(sf)
 library(tidyverse)
 
+# Downloads TerraClimate VPD (vapor pressure deficit), monthly, 2000-2025,
+# for the Sierra Nevada AOI, and saves as NetCDF.
+#
+# Output: data_common/raw/vpd/TerraClimate_vpd_2000-2025.nc
+
 cat("Downloading TerraClimate VPD for Sierra Nevada area...\n")
 sn_aoi <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
 
-# Download VPD from TerraClimate
 cat("Downloading VPD (2000-2025) — this may take a few minutes...\n")
 vpd_raw <- getTerraClim(
   AOI       = sn_aoi,

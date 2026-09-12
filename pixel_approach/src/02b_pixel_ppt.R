@@ -1,16 +1,12 @@
 library(tidyverse)
 library(terra)
 
-# Extracts per-pixel PPT at each NDVI pixel centroid using bilinear
-# interpolation (downscales PRISM ~4km to 500m NDVI grid).
-# Unzips prismz.zip if not already extracted. Crops to Sierra Nevada
-# extent before extraction for speed.
+# Extracts per-pixel PPT (Feb 2000 - Dec 2016, monthly) at each NDVI pixel
+# centroid, bilinear-interpolated from PRISM's ~4km grid down to the 500m
+# NDVI grid. Unzips prismz.zip on first run if needed. Row order matches
+# pixel_metadata.csv (pixel_id).
 #
-# Output:
-#   pixel_approach/data/processed/ppt_matrix.rds — 251971 × 203 months
-# Row order matches pixel_metadata.csv (indexed by pixel_id).
-# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2016 (extended from Dec 2014 to
-# cover the 2015-2016 validation window).
+# Output: pixel_approach/data/processed/ppt_matrix.rds
 
 target_dates <- seq(as.Date("2000-02-01"), as.Date("2016-12-01"), by = "month")
 target_ym    <- format(target_dates, "%Y%m")

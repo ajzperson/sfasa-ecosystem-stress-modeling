@@ -39,9 +39,10 @@ cat(sprintf("  Pixels burned (moderate+) in validation window (%s): %d / %d (%.1
 zonal <- pixels |>
   group_by(cluster) |>
   summarise(
-    n_pixels                  = n(),
-    pct_burned_baseline_00_14 = round(100 * mean(burned_baseline_00_14), 1),
-    pct_burned_validation     = round(100 * mean(burned_validation_15_16), 1),
+    n_pixels                    = n(),
+    pct_burned_baseline_00_14   = round(100 * mean(burned_baseline_00_14), 1),
+    pct_burned_validation_exact = 100 * mean(burned_validation_15_16),
+    pct_burned_validation       = round(pct_burned_validation_exact, 1),
     .groups = "drop"
   ) |>
   arrange(as.integer(cluster))
@@ -49,15 +50,20 @@ zonal <- pixels |>
 cat("\n=== Combined: Fire Exposure by Cluster (MTBS moderate+ severity) ===\n")
 print(zonal)
 
+# Relative risk and ratio_to_c1 are computed from the unrounded rate
+# (pct_burned_validation_exact), not the 1-decimal display value -- dividing
+# already-rounded percentages compounds their rounding error into the
+# ratio, and fire rates are small enough (~2-3%) that this is not
+# negligible (e.g. 1.8%/3.3% rounded reads 1.83x vs. the true 1.79x).
 K <- max(zonal$cluster, na.rm = TRUE)
-rr_worst_vs_best <- zonal$pct_burned_validation[zonal$cluster == K] /
-  zonal$pct_burned_validation[zonal$cluster == 1]
+rr_worst_vs_best <- zonal$pct_burned_validation_exact[zonal$cluster == K] /
+  zonal$pct_burned_validation_exact[zonal$cluster == 1]
 cat(sprintf("  Relative risk (Cluster %d vs 1): %.2fx\n", K, rr_worst_vs_best))
 
 # Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
 # Cluster 1 is 1.00x by construction.
 zonal <- zonal |>
-  mutate(ratio_to_c1 = pct_burned_validation / pct_burned_validation[cluster == 1])
+  mutate(ratio_to_c1 = pct_burned_validation_exact / pct_burned_validation_exact[cluster == 1])
 
 write_csv(pixels, "pixel_approach/data/processed/combined_pixel_fire.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_fire.csv\n")
@@ -93,7 +99,7 @@ p_fire <- ggplot(zonal, aes(x = factor(cluster), y = pct_burned_validation,
 # ggsave time, for that script's own two-panel combined chart).
 p_fire_standalone <- p_fire +
   labs(title    = sprintf("MTBS Moderate+ Burn Severity by Combined Cluster (%s)", year_label),
-       subtitle = "% of pixels burned (severity >= moderate) — ground-truth validation, after cluster assignment")
+       subtitle = "% of pixels burned (severity >= moderate) — ground-truth evaluation, after cluster assignment")
 
 ggsave("pixel_approach/charts/combined_fire_by_cluster.pdf", plot = p_fire_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_fire_by_cluster.pdf\n")
@@ -116,7 +122,7 @@ p_fire_ratio <- ggplot(zonal, aes(x = factor(cluster), y = ratio_to_c1,
 
 p_fire_ratio_standalone <- p_fire_ratio +
   labs(title    = sprintf("MTBS Moderate+ Burn Severity by Combined Cluster (%s)", year_label),
-       subtitle = "% of pixels burned (severity >= moderate), as a ratio vs. Cluster 1 (least-stressed) — ground-truth validation, after cluster assignment")
+       subtitle = "% of pixels burned (severity >= moderate), as a ratio vs. Cluster 1 (least-stressed) — ground-truth evaluation, after cluster assignment")
 
 ggsave("pixel_approach/charts/combined_fire_by_cluster_ratio.pdf", plot = p_fire_ratio_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_fire_by_cluster_ratio.pdf\n")

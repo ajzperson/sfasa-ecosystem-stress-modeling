@@ -98,17 +98,9 @@ km <- sweep_res$km_final
 d$cluster_raw <- km$cluster
 
 # Composite/stress-rank score: unweighted sum of the same 4 z-scored
-# features used for clustering. An earlier version used PC1 (first
-# principal component) instead, reasoned that NDVI/NDWI's weak cross-index
-# correlation (r1: r=0.20; skew: r=-0.15) meant equal weights weren't
-# supported by the data. Tested directly: PC1 only explains 30.8% of
-# variance (barely above the 25% no-structure baseline for 4 features) and
-# assigns tau_skew_ndvi a counterintuitive *negative* loading (-0.293) --
-# despite that, re-ranking the same raw K-means clusters with PC1 vs. a
-# plain unweighted sum produces 100% identical cluster assignments (verified
-# directly: both orderings are cluster 1 < 4 < 3 < 2 by mean score). Since
-# the two methods are provably equivalent for this data, the simpler,
-# easier-to-explain unweighted sum is used -- no PCA-specific caveat needed.
+# features used for clustering. Equivalent to ranking by PC1 for this data
+# (both give the identical cluster ordering), so the simpler, easier-to-
+# explain unweighted sum is used instead.
 d$stress_score <- rowSums(feat)
 
 stress_rank <- d |>

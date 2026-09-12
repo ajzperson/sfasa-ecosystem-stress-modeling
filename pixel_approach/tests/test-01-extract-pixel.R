@@ -5,6 +5,9 @@ library(lubridate)
 
 source("../src/extract_pixel_matrix.R")
 
+# Tests extract_pixel_matrix() (shared by 01_extract_pixel_ndvi.R/
+# 01_extract_pixel_ndwi.R) plus those two scripts' own inline QC-masking
+# logic, which lives directly in each script rather than in a function.
 # Small synthetic rasters/boundaries only — the real ~1GB MODIS files are
 # too slow for unit tests. These exercise the same code paths (crop, mask,
 # monthly aggregation, metadata verification, QC masking) on tiny known

@@ -37,9 +37,8 @@ cat(sprintf("O1 n=%.0f beetle=%.1f%% fire=%.1f%%\n", o1_n["n"], o1_n["pct"], o1_
 cat(sprintf("O2 n=%.0f beetle=%.1f%% fire=%.1f%%\n", o2_n["n"], o2_n["pct"], o2_fire["pct"]))
 cat(sprintf("Both n=%.0f beetle=%.1f%% fire=%.1f%%\n", both_n["n"], both_n["pct"], both_fire["pct"]))
 
-# Values above are read directly by build_slides.py (copy-pasted into the
-# legend text) -- keep this script's console output as the source of truth
-# for those numbers.
+# Values above are copied by hand into the slide's legend text -- keep this
+# script's console output as the source of truth for those numbers.
 
 # --- Circle geometry: standard 3-circle Venn triangular layout -------------
 circle_pts <- function(cx, cy, r, n = 200) {

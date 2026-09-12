@@ -1,15 +1,11 @@
 library(tidyverse)
 library(terra)
 
-# Extracts per-pixel VPD at each NDVI pixel centroid using bilinear
-# interpolation (downscales TerraClimate ~4km to 500m NDVI grid).
-# Crop to Sierra Nevada extent before extraction for speed.
+# Extracts per-pixel VPD (Feb 2000 - Dec 2016, monthly) at each NDVI pixel
+# centroid, bilinear-interpolated from TerraClimate's ~4km grid down to the
+# 500m NDVI grid. Row order matches pixel_metadata.csv (pixel_id).
 #
-# Output:
-#   pixel_approach/data/processed/vpd_matrix.rds — 251971 × 203 months
-# Row order matches pixel_metadata.csv (indexed by pixel_id).
-# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2016 (extended from Dec 2014 to
-# cover the 2015-2016 validation window).
+# Output: pixel_approach/data/processed/vpd_matrix.rds
 
 target_dates <- seq(as.Date("2000-02-01"), as.Date("2016-12-01"), by = "month")
 target_ym    <- format(target_dates, "%Y%m")
@@ -27,16 +23,13 @@ crs(vpd_rast) <- "EPSG:4326"   # WGS84 — not embedded in the file
 vpd_ym   <- format(time(vpd_rast), "%Y%m")
 keep_v   <- which(vpd_ym %in% target_ym)
 vpd_rast <- vpd_rast[[keep_v]]
-# Captured directly off the subsetted raster (not re-derived by filtering
-# target_dates via %in%) so column labels are guaranteed to match the
-# layers actually extracted below, regardless of source ordering —
-# matches the robust pattern already used in 02b_pixel_ppt.R.
+# Read off the subsetted raster, not re-derived from target_dates, so column
+# labels always match the layers actually extracted below.
 vpd_dates <- time(vpd_rast)
 cat(sprintf("✓ VPD layers: %d (%s to %s)\n", nlyr(vpd_rast),
             format(vpd_dates[1]),
             format(vpd_dates[nlyr(vpd_rast)])))
 
-# Crop to Sierra Nevada extent before extraction
 vpd_rast <- crop(vpd_rast, ext(pts) + 0.5)
 cat("✓ Cropped to Sierra Nevada extent\n")
 

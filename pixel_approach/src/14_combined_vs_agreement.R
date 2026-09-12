@@ -70,9 +70,11 @@ summary_tbl <- d |>
   mutate(group = factor(group, levels = group_order)) |>
   group_by(group) |>
   summarise(
-    n           = n(),
-    pct_beetle  = round(100 * mean(any_mortality, na.rm = TRUE), 1),
-    pct_fire    = round(100 * mean(burned_validation, na.rm = TRUE), 1),
+    n                 = n(),
+    pct_beetle_exact  = 100 * mean(any_mortality, na.rm = TRUE),
+    pct_beetle        = round(pct_beetle_exact, 1),
+    pct_fire_exact    = 100 * mean(burned_validation, na.rm = TRUE),
+    pct_fire          = round(pct_fire_exact, 1),
     .groups = "drop"
   ) |>
   arrange(group)
@@ -80,10 +82,13 @@ summary_tbl <- d |>
 cat("\n=== Real-world 2015-2016 damage rates by group ===\n")
 print(summary_tbl)
 
-rr_fire   <- summary_tbl$pct_fire[summary_tbl$group == "Both"] /
-  summary_tbl$pct_fire[summary_tbl$group == "Neither"]
-rr_beetle <- summary_tbl$pct_beetle[summary_tbl$group == "Both"] /
-  summary_tbl$pct_beetle[summary_tbl$group == "Neither"]
+# Computed from the unrounded rate (pct_*_exact), not the 1-decimal display
+# value -- dividing already-rounded percentages compounds their rounding
+# error into the ratio.
+rr_fire   <- summary_tbl$pct_fire_exact[summary_tbl$group == "Both"] /
+  summary_tbl$pct_fire_exact[summary_tbl$group == "Neither"]
+rr_beetle <- summary_tbl$pct_beetle_exact[summary_tbl$group == "Both"] /
+  summary_tbl$pct_beetle_exact[summary_tbl$group == "Neither"]
 cat(sprintf("  Relative risk (Both vs Neither): Fire %.2fx, Beetle %.2fx\n", rr_fire, rr_beetle))
 
 write_csv(d, "pixel_approach/data/processed/combined_vs_agreement.csv")

@@ -3,23 +3,10 @@ library(terra)
 library(sf)
 
 # Extracts MTBS (Monitoring Trends in Burn Severity) burn exposure for every
-# pixel in the shared grid (pixel_metadata.csv) -- independent of clustering,
-# same role as 02a_pixel_vpd.R / 02b_pixel_ppt.R (a pixel-level covariate
-# extraction step), not a validation step. 09_fire_validation.R consumes
-# this output to cross-check it against cluster assignments.
-#
-# A pixel counts as "burned" only at moderate (3) or high (4) MTBS severity
-# -- low-severity understory fire (1/2) and post-fire regrowth (5) don't
-# count, since they likely don't meaningfully disturb canopy NDVI/NDWI.
-#
-# Validation years (2015-2019) are extracted individually, one column per
-# year, rather than pre-collapsed into a single OR'd flag -- so downstream
-# validation scripts (09_fire_validation.R) can pick any year range within
-# 2015-2019 (e.g. 2015-2016, to match beetle's ADS window, whose
-# LEGACY_TPA field is only populated for 2015-2016) without re-running
-# this extraction. Baseline (2000-2014) stays a single OR'd flag since
-# it's only ever used as an all-or-nothing exclusion criterion, never
-# compared across sub-windows.
+# pixel in pixel_metadata.csv. A pixel counts as "burned" only at moderate (3)
+# or high (4) severity. Baseline years (2000-2014) collapse to one OR'd
+# flag; 2015-2019 stay as separate per-year columns so downstream scripts
+# can pick any validation window without re-running this extraction.
 #
 # Output: pixel_approach/data/processed/pixel_fire.csv
 #   (pixel_id, burned_baseline_00_14, burned_2015, burned_2016, burned_2017,
@@ -32,10 +19,8 @@ MTBS_DIR <- "data_common/raw/mtbs/tif"
 BURNED_SEVERITY <- c(3, 4)  # moderate, high
 CACHE_DIR <- "pixel_approach/data/processed"
 
-# The MTBS direct-download service bundles all requested years into one
-# outer zip, which itself contains one inner zip per year (mtbs_CA_<year>.zip,
-# each holding that year's .tif + .xml directly at its root) -- a two-level
-# unzip, unlike the single-level unzip in 08_beetle_validation.R.
+# MTBS's direct-download bundles all years into one outer zip containing
+# one inner zip per year (mtbs_CA_<year>.zip) -- a two-level unzip.
 if (!dir.exists(MTBS_DIR) || length(list.files(MTBS_DIR, pattern = "\\.tif$")) == 0) {
   cat("Unzipping MTBS data (two levels: outer bundle -> per-year zips)...\n")
   tmp_dir <- tempfile("mtbs_extract_")
@@ -117,19 +102,13 @@ for (yr in as.character(VALIDATION_YEARS)) {
 }
 
 # --------------------------------------------------------------------------
-# 3. Extract burned status at every pixel in the shared grid. Each 500m
-#    pixel covers roughly 17x17 of these 30m MTBS cells. A 250m-radius
-#    buffer is drawn around the pixel's centroid, and max() is taken over
-#    every 30m cell inside that circle -- if any of them is moderate+
-#    severity (3/4), the max is 3/4 and the whole pixel is flagged burned.
-#    Explicit buffer polygons via terra::buffer(), not a buffer= shortcut
-#    -- extract() has no such argument in this terra version.
+# 3. Extract burned status per pixel: a 250m buffer around each centroid
+#    (spans ~17x17 of these 30m cells), max()'d over the buffer -- any
+#    moderate+ cell flags the pixel burned.
 #
-#    Processed in batches: extract() over all ~252k points in a single call
-#    silently truncates partway through (verified -- the first ~70k rows
-#    came back with real values, everything after was NA, exactly matching
-#    where a cluster-sorted file's first block ends), so chunking avoids
-#    whatever internal limit causes that.
+#    extract() over all ~252k points in one call returns NA for most rows
+#    partway through, with no error -- so it's called in 5000-point batches
+#    instead, which don't hit that.
 # --------------------------------------------------------------------------
 pixel_meta <- read_csv("pixel_approach/data/processed/pixel_metadata.csv",
                         show_col_types = FALSE)
@@ -166,12 +145,9 @@ for (yr in names(year_rasters)) {
   year_cols <- c(year_cols, col)
 }
 
-# A handful of pixels sit right at the template's edge, where the 250m
-# buffer never overlaps a raster cell at all -- extract() returns NA for
-# those, not FALSE. Treated as "not burned" (a reasonable default for a
-# tiny edge case) rather than propagating NA through the rest of the
-# pipeline, where mean()/sum() would silently turn into NA for an entire
-# cluster group from just one NA row.
+# Pixels at the template edge get NA (buffer never overlaps a raster cell),
+# not FALSE -- treated as not burned rather than letting NA propagate
+# through downstream mean()/sum() calls.
 all_cols <- c("burned_baseline_00_14", year_cols)
 n_edge_na <- sum(rowSums(is.na(pixel_meta[all_cols])) > 0)
 cat(sprintf("  %d pixels at the template edge had no raster overlap -- treated as not burned\n", n_edge_na))

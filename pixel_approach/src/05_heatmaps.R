@@ -3,21 +3,20 @@ library(sf)
 library(patchwork)
 
 # Spatial heatmaps of per-pixel CSD metrics, NDVI vs NDWI side by side in
-# each PDF:
-#   (1) tau_r1               — lag-1 autocorrelation trend
-#   (2) tau_var               — variance trend
-#   (3) tau_skew              — skewness trend
+# each PDF: tau_r1 (lag-1 autocorrelation trend), tau_var (variance trend),
+# tau_skew (skewness trend). All three share a fixed [-1,1] color scale,
+# since Kendall's tau means the same thing regardless of which series it's
+# computed from.
 #
-# tau_r1/tau_var/tau_skew share a fixed [-1,1] color scale across both
-# panels — Kendall's tau means the same statistical thing regardless of
-# which series it's computed from, so a shared scale is directly
-# comparable.
+# A 4th heatmap (Actual_Drop, see deprecated/src/04_actual_drop.R) is kept
+# commented out below -- real-world validation against MTBS fire + USFS ADS
+# beetle mortality (LCMAP was also tried and dropped -- see
+# 13_cluster_agreement_validation.R) is now the trusted ground truth
+# instead, and Actual_Drop disagrees with it on cluster severity.
 #
-# A 4th heatmap, Actual_*_Drop_15_16 (observed drop: baseline 2000-2011
-# mean minus min 2015-2016), used to be generated here too -- deprioritized
-# and commented out below (see 04_actual_drop.R, moved to deprecated/, for
-# why: real-world validation against MTBS/LCMAP/beetle is now the trusted
-# ground truth, and Actual_Drop doesn't agree with it on cluster severity).
+# Output: pixel_approach/charts/heatmap_tau_r1.pdf
+#         pixel_approach/charts/heatmap_tau_var.pdf
+#         pixel_approach/charts/heatmap_tau_skew.pdf
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 
@@ -31,14 +30,8 @@ d_ndwi <- read_csv("pixel_approach/data/processed/ndwi_pixel_tau.csv",
 
 sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
 
-# Boundary outline extracted to plain XY once, reused by every panel below
-# instead of geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect
-# axis.text's color/size but silently ignore face, so bold axis tick labels
-# are unreachable through the normal theme there (see
-# pixel_approach/src/00_study_area_chart.R for the same fix, with the same
-# verification that sn_boundary is a single POLYGON with no holes). Degree-
-# formatted breaks/labels (e.g. "121°W", "40°N") are recreated manually since
-# coord_sf normally supplies those automatically.
+# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
+# ignore theme's bold face, so degree labels are recreated manually.
 boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
 lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
 lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))

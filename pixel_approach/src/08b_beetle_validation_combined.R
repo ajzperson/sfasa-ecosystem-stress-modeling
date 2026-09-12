@@ -38,11 +38,12 @@ cat(sprintf("  Pixels with beetle mortality (%s): %d / %d (%.1f%%)\n",
 zonal <- pixels |>
   group_by(cluster) |>
   summarise(
-    n_pixels           = n(),
-    n_with_mortality   = sum(any_mortality),
-    pct_with_mortality = round(100 * mean(any_mortality), 1),
-    mean_tpa_affected  = round(mean(tpa[any_mortality], na.rm = TRUE), 1),
-    mean_tpa_all       = round(mean(tpa, na.rm = TRUE), 1),
+    n_pixels                 = n(),
+    n_with_mortality         = sum(any_mortality),
+    pct_with_mortality_exact = 100 * mean(any_mortality),
+    pct_with_mortality       = round(pct_with_mortality_exact, 1),
+    mean_tpa_affected        = round(mean(tpa[any_mortality], na.rm = TRUE), 1),
+    mean_tpa_all             = round(mean(tpa, na.rm = TRUE), 1),
     .groups = "drop"
   ) |>
   arrange(as.integer(cluster))
@@ -50,15 +51,18 @@ zonal <- pixels |>
 cat("\n=== Combined: Zonal TPA by Cluster ===\n")
 print(zonal)
 
+# Relative risk and ratio_to_c1 are computed from the unrounded rate
+# (pct_with_mortality_exact), not the 1-decimal display value -- dividing
+# already-rounded percentages compounds their rounding error into the ratio.
 K <- max(zonal$cluster, na.rm = TRUE)
-rr_worst_vs_best <- zonal$pct_with_mortality[zonal$cluster == K] /
-  zonal$pct_with_mortality[zonal$cluster == 1]
+rr_worst_vs_best <- zonal$pct_with_mortality_exact[zonal$cluster == K] /
+  zonal$pct_with_mortality_exact[zonal$cluster == 1]
 cat(sprintf("  Relative risk (Cluster %d vs 1): %.2fx\n", K, rr_worst_vs_best))
 
 # Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
 # Cluster 1 is 1.00x by construction.
 zonal <- zonal |>
-  mutate(ratio_to_c1 = pct_with_mortality / pct_with_mortality[cluster == 1])
+  mutate(ratio_to_c1 = pct_with_mortality_exact / pct_with_mortality_exact[cluster == 1])
 
 write_csv(pixels, "pixel_approach/data/processed/combined_pixel_beetle_tpa.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_beetle_tpa.csv\n")
@@ -98,7 +102,7 @@ p_tpa_standalone <- p_tpa +
        # Wrapped -- at this chart's narrower standalone width (7in, vs the
        # two-panel version's 12in that this same subtitle was sized for),
        # the unwrapped string overflows past the right edge of the canvas.
-       subtitle = str_wrap("% of pixels with bark beetle mortality (mean TPA shown for reference) — ground-truth validation, after cluster assignment", width = 70))
+       subtitle = str_wrap("% of pixels with bark beetle mortality (mean TPA shown for reference) — ground-truth evaluation, after cluster assignment", width = 70))
 
 ggsave("pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf", plot = p_tpa_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf\n")
@@ -121,7 +125,7 @@ p_tpa_ratio <- ggplot(zonal, aes(x = factor(cluster), y = ratio_to_c1,
 
 p_tpa_ratio_standalone <- p_tpa_ratio +
   labs(title    = sprintf("USFS ADS Beetle Mortality by Combined Cluster (%s)", year_label),
-       subtitle = str_wrap("% of pixels with bark beetle mortality, as a ratio vs. Cluster 1 (least-stressed) — ground-truth validation, after cluster assignment", width = 70))
+       subtitle = str_wrap("% of pixels with bark beetle mortality, as a ratio vs. Cluster 1 (least-stressed) — ground-truth evaluation, after cluster assignment", width = 70))
 
 ggsave("pixel_approach/charts/combined_beetle_tpa_by_cluster_ratio.pdf", plot = p_tpa_ratio_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_beetle_tpa_by_cluster_ratio.pdf\n")

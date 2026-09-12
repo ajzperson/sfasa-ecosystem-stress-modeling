@@ -5,6 +5,13 @@ library(lubridate)
 
 source("pixel_approach/src/extract_pixel_matrix.R")
 
+# Extracts a per-pixel monthly NDVI time series (2000-2016, QC-masked) for
+# every pixel within the Sierra Nevada boundary, from MODIS MOD13A1 16-day
+# composites aggregated to monthly means.
+#
+# Output: pixel_approach/data/processed/pixel_metadata.csv
+#         pixel_approach/data/processed/ndvi_matrix.rds
+
 # -----------------------------------------------------------------------
 # SAMPLE_ONLY: set TRUE to print a few rows for verification, FALSE for
 # the full 251,971-pixel run that writes pixel_metadata.csv +

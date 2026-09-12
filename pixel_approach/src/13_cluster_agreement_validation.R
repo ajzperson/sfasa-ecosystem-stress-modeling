@@ -152,13 +152,8 @@ map_df <- joined |>
 
 group_n <- setNames(summary_tbl$n, as.character(summary_tbl$group))
 
-# Boundary drawn as a plain polygon (via st_coordinates) on coord_fixed(),
-# not geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect
-# axis.text's color/size but silently ignore face, so bold axis tick labels
-# are unreachable through the normal theme there (see
-# pixel_approach/src/00_study_area_chart.R for the same fix). Degree-
-# formatted breaks/labels (e.g. "121°W", "40°N") are recreated manually
-# since coord_sf normally supplies those automatically.
+# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
+# ignore theme's bold face, so degree labels are recreated manually.
 boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
 map_lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
 map_lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))

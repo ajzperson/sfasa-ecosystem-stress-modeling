@@ -3,6 +3,20 @@ library(zoo)
 library(future.apply)
 library(progressr)
 
+# Computes CSD (critical slowing down) trend statistics per pixel: STL-
+# deseasonalize -> climate-correct (VPD+PPT, fit on the 2000-2011 baseline)
+# -> rolling WIN-month r1/variance/skewness over the growing season (Mar-
+# Nov) -> Kendall's tau trend in each. Runs once per index in INDICES
+# (NDVI and/or NDWI), parallelized across pixels with future.apply.
+#
+# Output (per index):
+#   pixel_approach/data/processed/<index>_pixel_tau.csv
+#     (pixel_id, lon, lat, tau_r1, p_r1, tau_var, p_var, tau_skew, p_skew,
+#      seas_01..seas_12, b0, b1, b2)
+#   pixel_approach/data/processed/<index>_rolling_r1.rds
+#   pixel_approach/data/processed/<index>_rolling_var.rds
+#   pixel_approach/data/processed/<index>_rolling_skew.rds
+
 # progressr defaults to disabled when interactive() is FALSE (e.g. Rscript),
 # so force it on to guarantee the progress bar shows regardless of how this
 # script is run.
@@ -16,12 +30,8 @@ handlers("txtprogressbar")
 #   WIN           <- 54    # rolling window (months)
 #   NA_THRESHOLD  <- 0.30  # skip pixel if fraction of NAs >= this
 #   EDGE_NA_LIMIT <- 6     # skip pixel if leading/trailing NA run exceeds this
-#                            (guards against na.approx(rule=2) flatlining a long
-#                            edge gap — verified not an issue in the current
-#                            MODIS NDVI data (worst case: 2-month leading /
-#                            1-month trailing run), but a real hazard if this
-#                            pipeline is reused with a sensor that has larger
-#                            cloud-masking gaps, e.g. Landsat or Sentinel-2)
+#                            (guards against na.approx(rule=2) flatlining a
+#                            long edge gap -- see edge_na_run() below)
 #   N_WORKERS     <- 5     # parallel worker processes (default: 5)
 #   FUTURE_MAX_SIZE_MB <- 2048  # cap on globals shipped to each worker (MiB);
 #                            must exceed mat + vpd_mat + ppt_mat combined
@@ -88,11 +98,10 @@ roll_skew <- function(x) {
 
 # --- Data guardrail: contiguous edge-NA run length -------------------------
 # na.approx(rule=2) fills leading/trailing NAs by copying the nearest real
-# value, which flatlines a long edge run. Checked empirically against the
-# current MODIS NDVI data: worst case across all 251,971 pixels is a 2-month
-# leading / 1-month trailing run — not a live problem here. Kept as a guard
-# in case this pipeline is reused with a sensor that has larger cloud-masking
-# gaps (e.g. Landsat, Sentinel-2).
+# value, which flatlines a long edge run. Not a live problem in the current
+# MODIS data (worst case: 2-month leading / 1-month trailing run), but kept
+# as a guard for a sensor with larger cloud-masking gaps (e.g. Landsat,
+# Sentinel-2).
 edge_na_run <- function(x) {
   na_idx <- is.na(x)
   if (!na_idx[1]) return(0L)
@@ -135,7 +144,7 @@ run_pixel_csd <- function(mat, var_label, out_file,
               n_pixels, WIN, NA_THRESHOLD * 100))
 
   # Growing-season index — filter to Mar–Nov after STL (same as cluster-level
-  # CSD in src/11_1_csd_manual.R). STL still runs on all 12 months.
+  # CSD in county_approach/src/11_1_csd_manual.R). STL still runs on all 12 months.
   col_dates  <- as.Date(colnames(mat))
   col_months <- as.integer(format(col_dates, "%m"))
   gs_idx     <- which(col_months %in% 3:11)
@@ -144,8 +153,8 @@ run_pixel_csd <- function(mat, var_label, out_file,
   # ts() needs a numeric (year, month) start — derived from the data's own
   # first column rather than hardcoded, so this doesn't silently mislabel
   # the series if this pipeline is ever reused with data starting a
-  # different month (both NDVI and NDWI currently start Feb 2000, verified,
-  # but nothing enforces that going forward).
+  # different month (both NDVI and NDWI currently start Feb 2000, but
+  # nothing enforces that going forward).
   series_start <- c(as.integer(format(col_dates[1], "%Y")),
                      as.integer(format(col_dates[1], "%m")))
 
@@ -221,13 +230,13 @@ run_pixel_csd <- function(mat, var_label, out_file,
                   r1_series = .pp_na_series, var_series = .pp_na_series, skew_series = .pp_na_series))
 
     # y_deseas = y - seasonal component (keeps trend + remainder). Same
-    # approach as cluster-level src/11_1_csd_manual.R.
+    # approach as cluster-level county_approach/src/11_1_csd_manual.R.
     seasonal <- as.numeric(decomp$time.series[, "seasonal"])
     y_deseas <- y - seasonal
 
-    # 12 monthly seasonal offsets (s.window="periodic" -> exactly one value per
-    # calendar month, verified empirically). .pp_col_months is the calendar-
-    # month vector for every column of .pp_mat (same for every pixel).
+    # 12 monthly seasonal offsets (s.window="periodic" -> exactly one value
+    # per calendar month). .pp_col_months is the calendar-month vector for
+    # every column of .pp_mat (same for every pixel).
     seas_by_month <- seasonal[match(1:12, .pp_col_months)]
     names(seas_by_month) <- sprintf("seas_%02d", 1:12)
 
@@ -299,22 +308,15 @@ run_pixel_csd <- function(mat, var_label, out_file,
     )
   }
 
-  # future/globals only avoids serializing a whole closure environment when
-  # that environment is .GlobalEnv specifically — any other environment
-  # (even a minimal, hand-built one) still gets shipped to workers as an
-  # opaque blob *in addition to* the same bindings being separately
-  # identified by name via static analysis, doubling the payload. Verified
-  # empirically: a plain list2env() flatten still doubled mat/vpd_mat/
-  # ppt_mat. So process_pixel() must live in .GlobalEnv itself, matching
-  # what the original single-index script did before this function was
-  # factored out.
+  # future/globals only skips serializing a closure environment when that
+  # environment is .GlobalEnv itself -- any other environment still gets
+  # shipped to workers as an opaque blob on top of its own bindings being
+  # separately identified by name, doubling the payload. So process_pixel()
+  # must live in .GlobalEnv.
   #
-  # Names are ".pp_"-prefixed (and process_pixel's body above reads only
-  # those prefixed names) specifically to avoid colliding with the driver
-  # loop's own top-level variables of the same bare name (mat, WIN,
-  # EDGE_NA_LIMIT, ...) — an earlier version used bare names here, which
-  # overwrote the driver loop's WIN/EDGE_NA_LIMIT and then deleted them via
-  # on.exit(), breaking the second (NDWI) loop iteration.
+  # Its ".pp_"-prefixed names (process_pixel's body reads only those) avoid
+  # colliding with this driver loop's own top-level variables of the same
+  # bare name (mat, WIN, EDGE_NA_LIMIT, ...).
   needed <- list(.pp_mat = mat, .pp_vpd_mat = vpd_mat, .pp_ppt_mat = ppt_mat,
                  .pp_gs_idx = gs_idx, .pp_window_idx = window_idx,
                  .pp_window_dates = window_dates, .pp_na_row = na_row,
@@ -336,11 +338,10 @@ run_pixel_csd <- function(mat, var_label, out_file,
 
   with_progress({
     assign(".pp_p", progressor(along = seq_len(n_pixels)), envir = globalenv())
-    # future.seed = NULL disables future's RNG-misuse check. process_pixel() itself
-    # never touches R's RNG (verified empirically: ran all steps on 20,000 real
-    # pixels sequentially, checked .Random.seed before/after each — zero changes),
-    # so the "UNRELIABLE VALUE" warning some runs produce is a false positive from
-    # the multisession/progressr worker machinery itself, not from this function.
+    # future.seed = NULL disables future's RNG-misuse check. process_pixel()
+    # itself never touches R's RNG, so the "UNRELIABLE VALUE" warning some
+    # runs produce is a false positive from the multisession/progressr
+    # worker machinery, not this function.
     pixel_results <- future_lapply(seq_len(n_pixels), process_pixel,
                                     future.seed = NULL,
                                     future.packages = "zoo")

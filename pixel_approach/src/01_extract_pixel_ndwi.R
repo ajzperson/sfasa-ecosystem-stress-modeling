@@ -5,9 +5,16 @@ library(lubridate)
 
 source("pixel_approach/src/extract_pixel_matrix.R")
 
+# Extracts a per-pixel monthly NDWI time series (2000-2016, QC-masked) for
+# every pixel within the Sierra Nevada boundary, from MODIS MOD09A1 8-day
+# bands aggregated to monthly means.
+#
+# Output: pixel_approach/data/processed/ndwi_matrix.rds
+
 # -----------------------------------------------------------------------
 # SAMPLE_ONLY: set TRUE to print a few rows for verification, FALSE for
-# the full run that writes ndwi_pixel_metadata.csv + ndwi_matrix.rds
+# the full run that writes ndwi_matrix.rds (verified against the existing
+# pixel_metadata.csv, not rewritten)
 # -----------------------------------------------------------------------
 if (!exists("SAMPLE_ONLY")) SAMPLE_ONLY <- FALSE
 if (!exists("N_SAMPLE"))   N_SAMPLE    <- 10

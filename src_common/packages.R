@@ -1,3 +1,6 @@
+# Installs R package dependencies for this project's climate downloads,
+# geospatial processing, CSD time-series analysis, clustering, and ML.
+
 install.packages(c(
   # Data manipulation & visualization
   "tidyverse",     # ggplot2, dplyr, tidyr, etc.
@@ -26,7 +29,7 @@ install.packages(c(
   "future.apply",  # parallel lapply (future_lapply)
   "progressr",     # progress bars across future workers
 
-  # Regression diagnostics
+  # Regression diagnostics & comparison plots
   "car",           # VIF (variance inflation factor) for multicollinearity checks
   "patchwork",     # combine multiple ggplots into one figure
   "multcompView",  # compact letter display (a/b/c) for Tukey HSD post-hoc

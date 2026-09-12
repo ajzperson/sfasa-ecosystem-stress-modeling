@@ -9,33 +9,18 @@ source("pixel_approach/src/clustering_helpers.R")
 
 # K-means clustering on density-residualized tau_r1 + tau_skew, run
 # independently for NDVI and NDWI (not combined into one 4-feature
-# clustering) — the point is to cross-validate two independent stress
-# signals against each other, which only works if each keeps its own
-# cluster assignment to compare.
-#
-# tau_var was part of an earlier tau_r1 + tau_var version of this
-# clustering; tau_skew is used instead. tau_r1 and tau_skew both
-# correlate with a pixel's own baseline (2000-2014) vegetation density
-# (r=0.30, r=-0.15 for NDVI; r=0.31, r=-0.19 for NDWI) — denser forest
+# clustering) so each keeps its own cluster assignment and the two can be
+# cross-validated against each other. tau_r1 and tau_skew both correlate
+# with a pixel's own baseline vegetation density (denser forest
 # mechanically has more fuel to burn and more tree cover eligible to
 # register an LCMAP loss transition, regardless of any actual CSD
-# dynamics. Both are residualized against baseline density before
-# clustering (post-residualization correlation ~0) to remove it. tau_var
-# is still computed by 03 but unused here.
+# dynamics), so both are residualized against it before clustering.
 #
-# Cluster K ("full CSD") is correctly the highest-risk cluster in both
-# NDVI and NDWI against MTBS/LCMAP. NDWI's ordering is fully monotonic
-# (1 < 2 < 3, all pairwise differences significant); NDVI's cluster 1/2
-# boundary is still not fully clean, but cluster K is reliably worst in
-# both.
-#
-# Each index is still validated against its own actual-drop ground truth
-# (Actual_Drop_15_16 for NDVI, Actual_NDWI_Drop_15_16 for NDWI) in the
-# ANOVA/Tukey/ROC charts below, matching standard CSD-literature
-# methodology — but MTBS fire + LCMAP mortality (checked separately in
-# 09/10) are the more trustworthy real-world validation: Actual_Drop only
-# reflects growing-season months while fire/mortality don't, and it
-# doesn't agree with fire/mortality on cluster severity ordering.
+# The ANOVA/Tukey/ROC validation below (against each index's own
+# actual-drop ground truth) is commented out -- deprioritized in favor of
+# MTBS fire + USFS ADS beetle mortality (checked separately in 09/08),
+# which don't agree with actual-drop on cluster severity ordering. See
+# deprecated/src/04_actual_drop.R.
 #
 # Outputs:
 #   pixel_approach/data/processed/ndvi_pixel_clusters.csv
@@ -190,10 +175,8 @@ results <- setNames(
 
 # Combines one panel per index into a single patchwork figure — side by
 # side (or stacked, for combine_op = `/`) when both indices are present,
-# returned unchanged when only one is. Every chart below is built from
-# this so it genuinely follows INDICES instead of assuming both NDVI and
-# NDWI always ran (an earlier version hardcoded results$ndvi/results$ndwi
-# directly, which crashed if INDICES had only one entry).
+# returned unchanged when only one is, so every chart below genuinely
+# follows INDICES instead of assuming both NDVI and NDWI always ran.
 combine_panels <- function(panels, guides = "collect", combine_op = `+`) {
   if (length(panels) == 1) return(panels[[1]])
   Reduce(combine_op, panels) + plot_layout(guides = guides)

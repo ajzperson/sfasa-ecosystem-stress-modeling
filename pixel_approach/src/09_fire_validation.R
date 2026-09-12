@@ -8,17 +8,15 @@ source("pixel_approach/src/clustering_helpers.R")
 # only at moderate+ MTBS severity -- see 02c for the extraction details.
 #
 # Two checks, same fire data, different time windows:
-#   1. Baseline window (2000-2014): informational only (clustering no longer
-#      excludes on this -- see 06_clustering.R revert). Flags pixels whose
-#      pre-collapse tau_r1/tau_var statistics may be fire-contaminated.
-#   2. Validation window (VALIDATION_YEARS below, default 2015-2016, not
-#      the full 2015-2019 MTBS availability): a second, independent
-#      ground-truth outcome, same role as beetle mortality (08_beetle_
-#      validation.R) -- default matches beetle's window (whose LEGACY_TPA
-#      data effectively ends in 2016) so all three validators are compared
-#      on equal footing. pixel_fire.csv now has one column per year
-#      (burned_2015..burned_2019, from 02c_pixel_fire.R), so this window
-#      can be widened/narrowed here without re-running extraction.
+#   1. Baseline window (2000-2014): a sanity check, not a real cross-tab --
+#      06_clustering.R already excludes any pixel burned in this window
+#      before clustering, so every cluster's rate here should read ~0%.
+#   2. Validation window (VALIDATION_YEARS below, default 2015-2016): the
+#      real ground-truth outcome, same role as beetle mortality
+#      (08_beetle_validation.R) -- default matches beetle's window so both
+#      validators are compared on equal footing. pixel_fire.csv has
+#      one column per year (burned_2015..burned_2019), so this window can
+#      be widened/narrowed here without re-running extraction.
 #
 # Output:
 #   pixel_approach/charts/fire_by_cluster.pdf (NDVI + NDWI side by side)
@@ -68,9 +66,10 @@ run_fire_validation <- function(cfg, fire_flags) {
   zonal <- pixels |>
     group_by(cluster) |>
     summarise(
-      n_pixels                  = n(),
-      pct_burned_baseline_00_14 = round(100 * mean(burned_baseline_00_14), 1),
-      pct_burned_validation     = round(100 * mean(burned_validation_15_16), 1),
+      n_pixels                    = n(),
+      pct_burned_baseline_00_14   = round(100 * mean(burned_baseline_00_14), 1),
+      pct_burned_validation_exact = 100 * mean(burned_validation_15_16),
+      pct_burned_validation       = round(pct_burned_validation_exact, 1),
       .groups = "drop"
     ) |>
     arrange(as.integer(cluster))
@@ -78,14 +77,19 @@ run_fire_validation <- function(cfg, fire_flags) {
   cat(sprintf("\n=== %s: Fire Exposure by Cluster (MTBS moderate+ severity) ===\n", cfg$label))
   print(zonal)
 
-  rr_c3_vs_c1 <- zonal$pct_burned_validation[zonal$cluster == 3] /
-    zonal$pct_burned_validation[zonal$cluster == 1]
+  # Relative risk and ratio_to_c1 are computed from the unrounded rate
+  # (pct_burned_validation_exact), not the 1-decimal display value --
+  # dividing already-rounded percentages compounds their rounding error
+  # into the ratio, and fire rates are small enough (~2-3%) that this is
+  # not negligible (e.g. 1.8%/3.3% rounded reads 1.83x vs. the true 1.79x).
+  rr_c3_vs_c1 <- zonal$pct_burned_validation_exact[zonal$cluster == 3] /
+    zonal$pct_burned_validation_exact[zonal$cluster == 1]
   cat(sprintf("  Relative risk (Cluster 3 vs 1): %.2fx\n", rr_c3_vs_c1))
 
   # Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
   # Cluster 1 is 1.00x by construction.
   zonal <- zonal |>
-    mutate(ratio_to_c1 = pct_burned_validation / pct_burned_validation[cluster == 1])
+    mutate(ratio_to_c1 = pct_burned_validation_exact / pct_burned_validation_exact[cluster == 1])
 
   write_csv(pixels, cfg$out_csv)
   cat(sprintf("✓ Saved: %s\n", cfg$out_csv))
@@ -141,7 +145,7 @@ results <- lapply(index_config, run_fire_validation, fire_flags = fire_flags)
 p_combined <- (results$ndvi$plot + results$ndwi$plot) +
   plot_annotation(
     title    = sprintf("MTBS Moderate+ Burn Severity by CSD Cluster (%s)", year_label),
-    subtitle = "% of pixels burned (severity >= moderate) — ground-truth validation, after cluster assignment",
+    subtitle = "% of pixels burned (severity >= moderate) — ground-truth evaluation, after cluster assignment",
     theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
                       plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
   )
@@ -152,7 +156,7 @@ cat(sprintf("✓ Saved: %s\n", OUT_CHART))
 p_combined_ratio <- (results$ndvi$plot_ratio + results$ndwi$plot_ratio) +
   plot_annotation(
     title    = sprintf("MTBS Moderate+ Burn Severity by CSD Cluster (%s)", year_label),
-    subtitle = "% of pixels burned (severity >= moderate), as a ratio vs. Cluster 1 (least-stressed) — ground-truth validation, after cluster assignment",
+    subtitle = "% of pixels burned (severity >= moderate), as a ratio vs. Cluster 1 (least-stressed) — ground-truth evaluation, after cluster assignment",
     theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
                       plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"))
   )

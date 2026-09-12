@@ -3,45 +3,38 @@ library(patchwork)
 library(zoo)
 
 # Timeline of the ACTUAL rolling r1/skew statistics per cluster, 2005-2014
-# -- not raw NDVI/NDWI level (cluster_timelines.pdf, which mostly reflects
-# baseline vegetation density, not CSD), and not a re-aggregated recompute
-# (which was tried and rejected: averaging pixel residuals together first,
-# then computing rolling stats on the average, gave a DIFFERENT answer than
-# the real per-pixel tau_r1 means -- e.g. NDVI cluster 1 flipped sign). This
-# script instead reads the per-pixel rolling series 03_pixel_stl_csd.R now
-# saves directly (ndvi_rolling_r1.rds etc.) and averages THOSE within each
-# cluster -- the exact same per-pixel quantity that tau_r1_mean already
-# reports, just shown as its full time series instead of one collapsed
-# number. Uses the whole cluster (no subsampling), since the expensive part
-# (rolling-window computation) is already done and saved.
+# -- not raw NDVI/NDWI level (which mostly reflects baseline vegetation
+# density, not CSD), and not a re-aggregated recompute (averaging pixel
+# residuals first, then computing rolling stats on the average, gives a
+# DIFFERENT answer than the real per-pixel tau_r1 means -- e.g. NDVI
+# cluster 1 flips sign). Instead reads the per-pixel rolling series
+# 03_pixel_stl_csd.R saves directly (ndvi_rolling_r1.rds etc.) and averages
+# THOSE within each cluster -- the same per-pixel quantity tau_r1_mean
+# already reports, just shown as its full time series.
 #
-# tau_var/rolling variance is intentionally excluded -- it isn't part of the
-# clustering method (replaced by tau_skew), and its own rolling trend didn't
-# distinguish cluster 3 either (cluster 2 showed the biggest variance rise
-# in both indices, not cluster 3), so it wouldn't add anything here.
+# tau_var/rolling variance is excluded -- it isn't part of the clustering
+# method (replaced by tau_skew), and its own rolling trend didn't
+# distinguish cluster 3 either.
 #
-# Purpose: tau_r1_mean/tau_skew_mean only say a trend exists somewhere across
-# 2005-2014 -- they can't say WHEN. This chart is the only way to check
-# whether cluster 3's "rising autocorrelation" was already building years
-# before the 2012 drought (a real early-warning signal) or only appears
-# after (a post-hoc artifact of the drought already being underway).
+# Purpose: tau_r1_mean/tau_skew_mean only say a trend exists somewhere
+# across 2005-2014 -- they can't say WHEN. This chart checks whether
+# cluster 3's rising autocorrelation was already building years before the
+# 2012 drought (a real early-warning signal) or only appears after (a
+# post-hoc artifact).
 #
-# A third row -- rolling MEAN clim_resid level, not just its shape (r1/skew)
-# -- is included because skew alone can mislead: NDWI's skew recovers after
-# 2012 even though its actual residual level keeps getting worse through
-# 2014 (verified against real VPD/PPT data, which confirms 2013-2014 was
-# the driest/highest-VPD stretch of the whole record, ruling out a genuine
-# wet-spell recovery). Skew measures whether a few extreme months stand out
-# against an otherwise-normal majority -- once decline becomes widespread
-# rather than a few outliers, skew can revert toward symmetric even as the
-# mean keeps worsening. The level panel is the direct check on that. Unlike
-# r1/skew (nonlinear, so averaging pixels together first vs. computing per-
-# pixel-then-averaging give different answers -- verified, see the header
-# above), a MEAN is linear: averaging clim_resid across pixels within a
-# cluster first, then taking a rolling mean of that single series over
-# time, is mathematically identical to the reverse order, so this can be
-# computed cheaply on the whole cluster without redoing 03's expensive
-# per-pixel rolling-window computation.
+# A third row -- rolling MEAN clim_resid level, not just its shape (r1/
+# skew) -- is included because skew alone can mislead: NDWI's skew
+# recovers after 2012 even though its actual residual level keeps getting
+# worse through 2014 (2013-2014 was the driest/highest-VPD stretch of the
+# whole record, ruling out a genuine wet-spell recovery). Skew measures
+# whether a few extreme months stand out against an otherwise-normal
+# majority -- once decline becomes widespread, skew can revert toward
+# symmetric even as the mean keeps worsening. Unlike r1/skew (nonlinear,
+# so per-pixel-then-averaged differs from averaged-then-computed), a MEAN
+# is linear -- averaging clim_resid across a cluster first, then taking a
+# rolling mean of that single series, is mathematically identical to the
+# reverse order, so this is computed cheaply without redoing 03's
+# expensive per-pixel rolling-window computation.
 #
 # Output: pixel_approach/charts/cluster_csd_rolling_timeline.pdf
 
@@ -124,9 +117,9 @@ build_cluster_trajectories <- function(cfg) {
   skew_mat <- readRDS(cfg$skew_path)
   dates    <- as.Date(colnames(r1_mat))
 
-  # Row i of each matrix corresponds to pixel_id == i (verified: 03_pixel_
-  # stl_csd.R builds these via future_lapply(seq_len(n_pixels), ...), same
-  # order as pixel_meta$pixel_id, which is 1:n_pixels).
+  # Row i of each matrix corresponds to pixel_id == i -- 03_pixel_stl_csd.R
+  # builds these via future_lapply(seq_len(n_pixels), ...), same order as
+  # pixel_meta$pixel_id (which is 1:n_pixels).
   build_one <- function(mat, stat_name) {
     out <- vector("list", 3)
     for (k in 1:3) {

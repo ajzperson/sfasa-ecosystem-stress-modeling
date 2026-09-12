@@ -1,14 +1,13 @@
-# Filters the EPA Level III shapefile on US_L3CODE == "5", which uniquely
-# identifies the region named "Sierra Nevada" (US_L3NAME).
-# Reprojects to EPSG:4326 before saving as GeoJSON, per the GeoJSON spec
-# (RFC 7946), which mandates WGS84 — the output's CRS reads as OGC:CRS84
-# rather than plain EPSG:4326 (same datum, GeoJSON's required axis-order
-# label).
-# Computes area by reprojecting to EPSG:3310 ("NAD83 / California Albers,"
-# a standard equal-area projection for California) before calling
-# st_area(): 53,102.7 km².
-
 library(sf)
+
+# Filters the EPA Level III ecoregion shapefile to US_L3CODE == "5" (the
+# region named "Sierra Nevada" in US_L3NAME), reprojects to EPSG:4326 (the
+# GeoJSON spec, RFC 7946, mandates WGS84 -- output CRS reads as OGC:CRS84,
+# same datum, GeoJSON's required axis-order label), and saves as GeoJSON.
+# Area is computed via EPSG:3310 (NAD83 / California Albers, an equal-area
+# projection for California): 53,102.7 km².
+#
+# Output: docs_common/sierra_nevada_boundary.geojson
 
 sf_use_s2(TRUE)
 

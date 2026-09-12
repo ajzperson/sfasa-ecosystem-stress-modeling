@@ -34,14 +34,8 @@ style        <- build_cluster_style(3)
 cluster_cols <- style$cols
 clust_labels <- style$labels
 
-# Boundary outline extracted to plain XY once, reused below instead of
-# geom_sf()/coord_sf() -- coord_sf's graticule label grobs respect axis.text's
-# color/size but silently ignore face, so bold axis tick labels are
-# unreachable through the normal theme there (see
-# pixel_approach/src/00_study_area_chart.R for the same fix and the same
-# verification that sn_boundary is a single POLYGON with no holes). Degree-
-# formatted breaks/labels (e.g. "121°W", "40°N") are recreated manually since
-# coord_sf normally supplies those automatically.
+# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
+# ignore theme's bold face, so degree labels are recreated manually.
 boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
 lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
 lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))
@@ -67,8 +61,8 @@ build_map_panel <- function(clusters_path, label) {
       plot.title      = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
       plot.caption    = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"),
       # Legend inset into the panel's upper-right corner, which is genuinely
-      # empty of data (lat > 38.0 & lon > -119.15 has zero pixels, verified
-      # for both NDVI and NDWI) -- a side legend was tried and abandoned:
+      # empty of data (lat > 38.0 & lon > -119.15 has zero pixels, for both
+      # NDVI and NDWI) -- a side legend was tried and abandoned:
       # patchwork gives a coord_sf-locked panel a column sized to its own
       # aspect ratio and centers the (narrower) panel within it, leaving a
       # large dead gap before the legend that neither plot_layout() width
@@ -123,7 +117,7 @@ build_dashboard <- function(cfg, idx, ratio = FALSE) {
   p <- ((map_panel) | (fire_panel / beetle_panel)) +
     plot_layout(widths = c(1, 1)) +
     plot_annotation(
-      title = sprintf("%s: Cluster Map + Real-World Validation Summary%s", cfg$label, title_suffix),
+      title = sprintf("%s: Cluster Map + Real-World Evaluation Summary%s", cfg$label, title_suffix),
       theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16, color = "#1B2A1F"))
     )
 
