@@ -13,6 +13,7 @@ library(ggtext)
 #
 # Output:
 #   pixel_approach/charts/combined_vs_agreement.pdf
+#   pixel_approach/charts/combined_vs_agreement.png
 #   pixel_approach/data/processed/combined_vs_agreement.csv
 
 combined <- read_csv("pixel_approach/data/processed/combined_pixel_clusters.csv", show_col_types = FALSE) |>
@@ -112,7 +113,7 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
   scale_x_discrete(labels = setNames(group_x_labels, group_order)) +
   labs(
     title   = "Real 2015-2016 damage rates",
-    caption = sprintf("**Both** = (NDVI_3 ∩ NDWI_3) ∩ NDVI+NDWI_4<br>**Neither** = in neither (NDVI_3 ∩ NDWI_3) nor NDVI+NDWI_4<br><span style='font-size:18pt'>**Relative risk (Both vs Neither): Fire %.1f×, Beetle %.1f×**</span>", rr_fire, rr_beetle),
+    caption = sprintf("**Both** = (NDVI_3 ∩ NDWI_3) ∩ NDVI+NDWI_4<br>**Neither** = in neither (NDVI_3 ∩ NDWI_3) nor NDVI+NDWI_4<br><span style='font-size:18pt'>**Relative risk (Both vs Neither): Fire %.2f×, Beetle %.2f×**</span>", rr_fire, rr_beetle),
     x = NULL, y = "% of pixels"
   ) +
   theme_bw() +

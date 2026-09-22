@@ -8,11 +8,10 @@ library(patchwork)
 # since Kendall's tau means the same thing regardless of which series it's
 # computed from.
 #
-# A 4th heatmap (Actual_Drop, see deprecated/src/04_actual_drop.R) is kept
-# commented out below -- real-world validation against MTBS fire + USFS ADS
-# beetle mortality (LCMAP was also tried and dropped -- see
-# 13_cluster_agreement_validation.R) is now the trusted ground truth
-# instead, and Actual_Drop disagrees with it on cluster severity.
+# A 4th heatmap (Actual_Drop) is kept commented out below -- MTBS fire +
+# USFS ADS beetle mortality validation (see
+# 13_cluster_agreement_validation.R) is the current ground truth for
+# cluster severity instead.
 #
 # Output: pixel_approach/charts/heatmap_tau_r1.pdf
 #         pixel_approach/charts/heatmap_tau_var.pdf

@@ -11,16 +11,14 @@ source("pixel_approach/src/clustering_helpers.R")
 # independently for NDVI and NDWI (not combined into one 4-feature
 # clustering) so each keeps its own cluster assignment and the two can be
 # cross-validated against each other. tau_r1 and tau_skew both correlate
-# with a pixel's own baseline vegetation density (denser forest
-# mechanically has more fuel to burn and more tree cover eligible to
-# register an LCMAP loss transition, regardless of any actual CSD
-# dynamics), so both are residualized against it before clustering.
+# with a pixel's own baseline vegetation density (denser forest has more
+# fuel to burn, independent of actual CSD dynamics), so both are
+# residualized against it before clustering.
 #
 # The ANOVA/Tukey/ROC validation below (against each index's own
-# actual-drop ground truth) is commented out -- deprioritized in favor of
-# MTBS fire + USFS ADS beetle mortality (checked separately in 09/08),
-# which don't agree with actual-drop on cluster severity ordering. See
-# deprecated/src/04_actual_drop.R.
+# actual-drop ground truth) is commented out -- MTBS fire + USFS ADS
+# beetle mortality (checked separately in 09/08) is the current
+# validation instead.
 #
 # Outputs:
 #   pixel_approach/data/processed/ndvi_pixel_clusters.csv
@@ -43,14 +41,14 @@ index_config <- list(
   ndvi = list(
     tau_path     = NDVI_TAU_FILE,
     mat_path     = "pixel_approach/data/processed/ndvi_matrix.rds",
-    # drop_col   = "Actual_Drop_15_16",  # deprioritized -- see 04_actual_drop.R (moved to deprecated/)
+    # drop_col   = "Actual_Drop_15_16",  # deprioritized (see header)
     clusters_out = "pixel_approach/data/processed/ndvi_pixel_clusters.csv",
     label        = "NDVI"
   ),
   ndwi = list(
     tau_path     = NDWI_TAU_FILE,
     mat_path     = "pixel_approach/data/processed/ndwi_matrix.rds",
-    # drop_col   = "Actual_NDWI_Drop_15_16",  # deprioritized -- see 04_actual_drop.R (moved to deprecated/)
+    # drop_col   = "Actual_NDWI_Drop_15_16",  # deprioritized (see header)
     clusters_out = "pixel_approach/data/processed/ndwi_pixel_clusters.csv",
     label        = "NDWI"
   )
@@ -144,7 +142,7 @@ run_clustering <- function(cfg, K, SEED) {
               K, paste(table(d$cluster), collapse = " / ")))
 
   # Print cluster centroids in original (unscaled) units
-  # drop_col <- cfg$drop_col  # deprioritized -- see 04_actual_drop.R (moved to deprecated/)
+  # drop_col <- cfg$drop_col  # deprioritized (see header)
   centers_orig <- d |>
     group_by(cluster) |>
     summarise(

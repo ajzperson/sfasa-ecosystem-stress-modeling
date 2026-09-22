@@ -1,7 +1,7 @@
 library(prism)
 library(tidyverse)
 
-# Downloads PRISM monthly climate normals (precipitation, mean/min/max
+# Downloads PRISM monthly climate data (precipitation, mean/min/max
 # temperature), 2000-2026, CONUS-wide (PRISM has no AOI-clip option).
 #
 # Output: data_common/raw/prism/prismz/

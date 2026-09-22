@@ -7,14 +7,12 @@ library(patchwork)
 # populations only overlap ~35% (Jaccard 0.22) -- this script splits all
 # pixels flagged cluster 3 by at least one index into three groups (NDVI-3
 # only, NDWI-3 only, both) and checks real-world 2015-2016 outcome rates
-# (fire, beetle mortality) in each group. LCMAP was dropped as a validator --
-# its detection method doesn't match what CSD is built to detect; see
-# DESIGN.md. Pixels
-# flagged by neither index are dropped entirely -- not the question this
-# script asks. Also maps the three groups spatially, to check whether
-# disagreement is scattered (index-specific noise) or geographically
-# clustered (a real spatial driver, e.g. elevation/forest-type differences
-# in which index is more sensitive).
+# (fire, beetle mortality) in each group. Pixels flagged by neither index
+# are dropped entirely -- not the question this script asks. Also maps the
+# three groups spatially, to check whether disagreement is scattered
+# (index-specific noise) or geographically clustered (a real spatial
+# driver, e.g. elevation/forest-type differences in which index is more
+# sensitive).
 #
 # Output:
 #   pixel_approach/charts/cluster_agreement_validation.pdf
@@ -99,7 +97,7 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
                         if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS)
                         else sprintf("%d-%d", min(VALIDATION_YEARS), max(VALIDATION_YEARS))),
     x = NULL, y = "% of pixels",
-    caption = sprintf("Relative risk (Both vs NDWI-3 only): Fire %.1f×, Beetle %.1f×", rr_fire, rr_beetle)
+    caption = sprintf("Relative risk (Both vs NDWI-3 only): Fire %.2f×, Beetle %.2f×", rr_fire, rr_beetle)
   ) +
   theme_bw() +
   theme(

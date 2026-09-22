@@ -11,6 +11,9 @@ library(sf)
 # Output: pixel_approach/data/processed/pixel_fire.csv
 #   (pixel_id, burned_baseline_00_14, burned_2015, burned_2016, burned_2017,
 #    burned_2018, burned_2019)
+#   Also caches per-year burned-severity rasters (mtbs_baseline_severity.tif,
+#   mtbs_severity_2015.tif..mtbs_severity_2019.tif) in the same directory,
+#   reused on subsequent runs.
 
 sf_use_s2(FALSE)
 

@@ -18,6 +18,11 @@ source("pixel_approach/src/clustering_helpers.R")
 #     chart/panels untouched
 #   pixel_approach/data/processed/pixel_beetle_tpa_ndvi.csv
 #   pixel_approach/data/processed/pixel_beetle_tpa_ndwi.csv
+#   pixel_approach/data/processed/panel_beetle_ndvi.rds (per-index panel,
+#     reused by 11_dashboard.R)
+#   pixel_approach/data/processed/panel_beetle_ndvi_ratio.rds
+#   pixel_approach/data/processed/panel_beetle_ndwi.rds
+#   pixel_approach/data/processed/panel_beetle_ndwi_ratio.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else

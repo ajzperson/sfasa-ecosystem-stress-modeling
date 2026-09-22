@@ -25,6 +25,11 @@ source("pixel_approach/src/clustering_helpers.R")
 #     untouched
 #   pixel_approach/data/processed/pixel_fire_ndvi.csv
 #   pixel_approach/data/processed/pixel_fire_ndwi.csv
+#   pixel_approach/data/processed/panel_fire_ndvi.rds (per-index panel,
+#     reused by 11_dashboard.R)
+#   pixel_approach/data/processed/panel_fire_ndvi_ratio.rds
+#   pixel_approach/data/processed/panel_fire_ndwi.rds
+#   pixel_approach/data/processed/panel_fire_ndwi_ratio.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else

@@ -118,9 +118,9 @@ test_that("verify_metadata_path errors when pixel count doesn't match", {
 })
 
 test_that("sample_only mode works with n_sample = 1 (regression test)", {
-  # Regression test for a fixed bug: values(...)[sample_cells, ] used to
-  # drop to a plain vector when n_sample == 1, breaking the colnames<-
-  # assignment right after it with an unrelated error.
+  # Without drop = FALSE, values(...)[sample_cells, ] drops to a plain
+  # vector when n_sample == 1, breaking the colnames<- assignment right
+  # after it.
   dates <- as.Date(c("2020-01-15", "2020-02-10"))
   r <- rast(nrows = 4, ncols = 4, nlyrs = 2, xmin = 0, xmax = 4, ymin = 0, ymax = 4,
             crs = "EPSG:4326")

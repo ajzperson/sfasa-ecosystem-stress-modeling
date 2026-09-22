@@ -4,11 +4,8 @@ library(patchwork)
 
 source("pixel_approach/src/clustering_helpers.R")
 
-# One-page-per-index summary: cluster map on top, the two real-world
-# validator bars (fire, beetle) below it. LCMAP was dropped as a validator --
-# its detection method (Landsat break detection, tuned to abrupt disturbance)
-# doesn't match what CSD is built to detect (slow, gradual pre-tipping-point
-# decline); see DESIGN.md. Assembled from panels saved by
+# One-page-per-index summary: cluster map beside the two real-world
+# validator bars (fire, beetle), stacked. Assembled from panels saved by
 # 06_clustering.R/09_fire_validation.R/08_beetle_validation.R -- run those
 # three first (in any order; this script only reads their saved outputs, it
 # doesn't recompute anything itself).

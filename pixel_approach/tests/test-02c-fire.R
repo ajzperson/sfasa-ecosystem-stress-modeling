@@ -8,8 +8,8 @@ library(terra)
 BURNED_SEVERITY <- c(3, 4)  # moderate, high -- same as the real script
 
 test_that("severity reclassification keeps only moderate/high (3/4)", {
-  # MTBS codes: 1/2 = low severity, 3 = moderate, 4 = high, 5 = increased
-  # greenness, 6 = non-processing mask
+  # MTBS codes: 1 = unburned/low, 2 = low severity, 3 = moderate, 4 = high,
+  # 5 = increased greenness, 6 = non-processing mask
   r <- rast(nrows = 1, ncols = 6, xmin = 0, xmax = 6, ymin = 0, ymax = 1, crs = "EPSG:32610")
   values(r) <- c(1, 2, 3, 4, 5, 6)
 

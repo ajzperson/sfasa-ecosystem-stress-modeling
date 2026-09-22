@@ -52,9 +52,9 @@ assign("fire_flags", tibble(pixel_id = 1:60, burned_baseline_00_14 = FALSE),
 assign("pixel_meta", tibble(pixel_id = 1:60), envir = .GlobalEnv)
 
 # ----------------------------------------------------------------------------
-# combine_panels() -- direct regression guard for the bug this session
-# found: chart code used to hardcode results$ndvi/results$ndwi, crashing
-# whenever INDICES had only one entry.
+# combine_panels() -- regression guard: must return a single panel
+# unchanged when INDICES has only one entry, not assume both NDVI and NDWI
+# always ran.
 # ----------------------------------------------------------------------------
 test_that("combine_panels returns a single panel unchanged when given one", {
   p <- ggplot(data.frame(x = 1, y = 1), aes(x, y)) + geom_point()
@@ -119,7 +119,7 @@ test_that("run_clustering relabels clusters by ascending composite stress", {
 
   result <- run_clustering(cfg, K = 3, SEED = 1)
 
-  # The 20 lowest-tau_r1/tau_var pixels (rows 1:20) must all land in
+  # The 20 lowest-tau_r1/tau_skew pixels (rows 1:20) must all land in
   # cluster "1" (least stressed); the 20 highest (rows 41:60) in cluster
   # "3" (most stressed) -- regardless of kmeans' internal cluster numbering.
   low_group_clusters  <- result$d$cluster[result$d$pixel_id %in% 1:20]
@@ -134,6 +134,5 @@ test_that("run_clustering relabels clusters by ascending composite stress", {
 # testthat::test_dir() run. Without this cleanup, leftover bindings like
 # K/SEED/index_config would leak into later test files that guard their
 # own defaults with `if (!exists("K")) K <- ...`, silently overriding
-# them (this broke test-06b-clustering-combined.R's own K <- 4 default
-# the first time this file ran before it in a full test_dir() pass).
+# them.
 rm(list = setdiff(ls(.GlobalEnv), .pre_existing_globals), envir = .GlobalEnv)

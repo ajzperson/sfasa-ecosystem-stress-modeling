@@ -20,12 +20,10 @@ test_that("date-range filtering (%in% target_ym) selects the correct subset", {
 })
 
 test_that("column dates derived from time() match layers even when source is out of order (regression test)", {
-  # This is exactly the scenario the 02a fix guards against: the OLD code
-  # (colnames <- format(target_dates[target_ym %in% vpd_ym[keep_v]], ...))
-  # would have mislabeled columns here, because it derived labels from a
-  # separately-built, always-ascending target_dates sequence rather than
-  # from the actual layer order. Deliberately reversed source dates below
-  # would silently swap the Jan/Mar labels under the old approach.
+  # Guards against deriving column labels from a separately-built,
+  # always-ascending date sequence instead of the subsetted raster's own
+  # time() -- with out-of-order source dates, that would silently swap
+  # labels (e.g. Jan/Mar) instead of matching each value to its real date.
   dates_out_of_order <- as.Date(c("2020-03-01", "2020-02-01", "2020-01-01"))
   r <- rast(nrows = 1, ncols = 1, nlyrs = 3, xmin = 0, xmax = 1, ymin = 0, ymax = 1,
             crs = "EPSG:4326")

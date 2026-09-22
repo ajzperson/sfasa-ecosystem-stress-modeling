@@ -25,8 +25,9 @@ library(zoo)
 # A third row -- rolling MEAN clim_resid level, not just its shape (r1/
 # skew) -- is included because skew alone can mislead: NDWI's skew
 # recovers after 2012 even though its actual residual level keeps getting
-# worse through 2014 (2013-2014 was the driest/highest-VPD stretch of the
-# whole record, ruling out a genuine wet-spell recovery). Skew measures
+# worse through 2014 (2013-2014 remained dry and high-VPD, among the most
+# severe growing-season stretches of the record, ruling out a genuine
+# wet-spell recovery). Skew measures
 # whether a few extreme months stand out against an otherwise-normal
 # majority -- once decline becomes widespread, skew can revert toward
 # symmetric even as the mean keeps worsening. Unlike r1/skew (nonlinear,

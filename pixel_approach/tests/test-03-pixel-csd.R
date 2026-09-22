@@ -25,11 +25,11 @@ setwd(old_wd)
 # ----------------------------------------------------------------------------
 
 test_that("roll_r1 detects strong positive autocorrelation", {
-  # A perfectly linear series doesn't give a value near 1 under this
-  # formula even in principle -- dividing by length(x) rather than the
-  # actual pair count, plus endpoints only contributing to one product
-  # each, attenuates it. 0.7 still clearly demonstrates strong positive
-  # detection without assuming an unrealistic exact value.
+  # A perfectly linear series won't land exactly at 1 under this formula --
+  # dividing the pairwise-product sum by length(x) instead of the actual
+  # pair count (n-1, not n) leaves a systematic (n-1)/n shortfall, on top
+  # of endpoints only contributing to one product each. 0.7 still clearly
+  # demonstrates strong positive detection without assuming a value near 1.
   x <- 1:20
   d <- seq(as.Date("2020-01-01"), by = "month", length.out = 20)
   expect_gt(roll_r1(x, d), 0.7)
@@ -139,9 +139,9 @@ test_that("run_pixel_csd processes a normal pixel end-to-end and correctly drops
   expect_true(all(result$tau_r1 >= -1 & result$tau_r1 <= 1, na.rm = TRUE))
   expect_true(all(result$tau_var >= -1 & result$tau_var <= 1, na.rm = TRUE))
 
-  # Rolling r1/var/skew series: 2 rows (pixels) x (48 growing-season-ish
-  # months - WIN=12 + 1) columns; row 1 (normal pixel) real values, row 2
-  # (dropped pixel) all-NA, same shape as row 1 either way.
+  # Rolling r1/var/skew series: 2 rows (pixels) x (36 growing-season
+  # months - WIN=12 + 1 = 25) columns; row 1 (normal pixel) real values,
+  # row 2 (dropped pixel) all-NA, same shape as row 1 either way.
   r1_matrix   <- readRDS(r1_file)
   var_matrix  <- readRDS(var_file)
   skew_matrix <- readRDS(skew_file)
