@@ -1,120 +1,58 @@
 # SFASA 2026 Project
-**Using Time-Series Statistics Predict Ecosystem Collapse**
+**Using Time-Series Statistics to Predict Ecosystem Collapse**
 
 Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 
-## How to Run
+Tests whether Critical Slowing Down (CSD) statistics — trends in autocorrelation, variance, and skewness that theory predicts emerge as a system approaches a critical transition — computed from MODIS NDVI/NDWI time series (2000–2014) can serve as an early-warning signal for the 2012–2016 Sierra Nevada drought collapse. Pixels are clustered into stress tiers by their CSD trend, then checked against real 2015–2016 bark-beetle mortality (USFS ADS) and fire severity (MTBS): across every clustering variant (NDVI-only, NDWI-only, and NDVI+NDWI-combined), more-stressed tiers show a monotonically higher real-world damage rate.
 
-## Prep
+Full narrative, method, and results: `pixel_approach/docs/sfasa2026_sierra_nevada_slides.pptx`
 
-Run 1: `src_common/packages.R` — installs all required R packages.
+## Repo Layout
 
-Run 2: `src_common/00_process_ecoregion.R`
-- Output: `docs_common/sierra_nevada_boundary.geojson`
+- `pixel_approach/` — primary analysis, at the 500m MODIS pixel level (251,971 pixels across the Sierra Nevada ecoregion). Covered by this README; full step-by-step pipeline design in `pixel_approach/docs/DESIGN.md`.
+- `county_approach/` — a separate, county/cluster-level analysis. See `county_approach/docs/QUICKSTART.md`.
+- `data_common/` — shared raw downloaded data, used by both approaches.
+- `docs_common/` — shared docs; `docs_common/DATAPIPELINE.md` lists every raw data source and where to download it.
 
-Download each raw data source by following its `*_source_location.md` file (the raw data itself is too large for git):
-- `data_common/raw/prism/PRISM_source_location.md` (or run `src_common/02_download_prism.R`)
-- `data_common/raw/ndvi/NDVI_source_location.md`
-- `data_common/raw/ndwi/NDWI_source_location.md`
-- `data_common/raw/forest_damage/FOREST_DAMAGE_source_location.md`
-- `data_common/raw/lcmap/LCMAP_source_location.md`
-- `data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md`
+## Setup
 
-Optional runs:
-- `src_common/01a_download_vpd.R`
-- `src_common/01b_download_swe.R`
+1. `src_common/packages.R` — installs required R packages.
+2. Download the raw data the pixel approach needs, per `docs_common/DATAPIPELINE.md`: EPA ecoregion boundary, NDVI, NDWI, PRISM, USFS IDS (forest damage / beetle mortality), MTBS.
+3. `src_common/00_process_ecoregion.R` → `docs_common/sierra_nevada_boundary.geojson`
+4. `src_common/01a_download_vpd.R` → `data_common/raw/vpd/TerraClimate_vpd_2000-2025.nc`
 
-## Pixel Approach
+## Pixel Approach — Run Order
 
-Run 1: `pixel_approach/src/01_extract_pixel_ndvi.R`
-- Output:
-  - `ndvi_matrix.rds`
-  - `pixel_metadata.csv`
+Full mechanism, parameters, and complete output list for every script below: `pixel_approach/docs/DESIGN.md`.
 
-Run 2: `pixel_approach/src/01_extract_pixel_ndwi.R`
-- Output: `ndwi_matrix.rds`
+**1. Extract pixel-level inputs** (each pixel = one 500m MODIS grid cell; the shared grid is defined by the first script below)
+- `01_extract_pixel_ndvi.R` — NDVI monthly matrix + `pixel_metadata.csv` (the shared pixel grid)
+- `01_extract_pixel_ndwi.R` — NDWI monthly matrix, verified against the same grid
+- `02a_pixel_vpd.R`, `02b_pixel_ppt.R` — climate-correction covariates
+- `02c_pixel_fire.R` — MTBS burn exposure (fire confound + later validation)
+- `02e_pixel_beetle.R` — USFS ADS beetle mortality (later validation)
 
-Run 3: `pixel_approach/src/02a_pixel_vpd.R`
-- Output: `vpd_matrix.rds`
+**2. Compute CSD trend statistics**
+- `03_pixel_stl_csd.R` — STL decomposition + climate correction + rolling CSD stats + Kendall's tau, per pixel
+- `05_heatmaps.R` — spatial maps of tau_r1 / tau_var / tau_skew
 
-Run 4: `pixel_approach/src/02b_pixel_ppt.R`
-- Output: `ppt_matrix.rds`
+**3. Cluster pixels into stress tiers**
+- `06_clustering.R` — K-means per index (NDVI, NDWI separately)
+- `06b_clustering_combined.R` — K-means on combined NDVI+NDWI features
 
-Run 5: `pixel_approach/src/02c_pixel_fire.R`
-- Output:
-  - `pixel_fire.csv`
-  - `mtbs_baseline_severity.tif`
-  - `mtbs_severity_2015.tif`
-  - `mtbs_severity_2016.tif`
-  - `mtbs_severity_2017.tif`
-  - `mtbs_severity_2018.tif`
-  - `mtbs_severity_2019.tif`
+**4. Validate clusters against real 2015–2016 damage**
+- `08_beetle_validation.R`, `08b_beetle_validation_combined.R` — beetle mortality by cluster
+- `09_fire_validation.R`, `09b_fire_validation_combined.R` — fire exposure by cluster
+- `11_dashboard.R`, `11b_dashboard_combined.R` — one-page cluster map + validation summary
+- `12_csd_rolling_timeline.R` — CSD trajectory over time, by cluster
 
-Run 6: `pixel_approach/src/02d_pixel_tree_mortality.R`
-- Output: `pixel_tree_mortality.csv`
+**5. Compare clustering methods**
+- `13_cluster_agreement_validation.R` — NDVI vs. NDWI cluster agreement
+- `14_combined_vs_agreement.R` — combined clustering vs. NDVI/NDWI agreement
+- `13b_agreement_venn.R`, `15_overlap_venn.R` — Venn-diagram charts; run after `14`, both read its output
 
-Run 7: `pixel_approach/src/02e_pixel_beetle.R`
-- Output: `pixel_beetle.csv`
+**Supplementary**: `00_study_area_chart.R` — study-area map (run any time after step 1)
 
-Run 8: `pixel_approach/src/03_pixel_stl_csd.R`
-- Output:
-  - `ndvi_pixel_tau.csv`
-  - `ndwi_pixel_tau.csv`
-  - `ndvi_rolling_r1.rds`
-  - `ndvi_rolling_var.rds`
-  - `ndvi_rolling_skew.rds`
-  - `ndwi_rolling_r1.rds`
-  - `ndwi_rolling_var.rds`
-  - `ndwi_rolling_skew.rds`
+## Tests
 
-Run 9: `pixel_approach/src/05_heatmaps.R`
-- Output:
-  - `heatmap_tau_r1.pdf`
-  - `heatmap_tau_var.pdf`
-  - `heatmap_tau_skew.pdf`
-
-Run 10: `pixel_approach/src/06_clustering.R`
-- Output:
-  - `ndvi_pixel_clusters.csv`
-  - `ndwi_pixel_clusters.csv`
-  - `cluster_profile_ndvi.csv`
-  - `cluster_profile_ndwi.csv`
-  - `cluster_k_sweep.pdf`
-  - `cluster_map.pdf`
-
-Run 11: `pixel_approach/src/08_beetle_validation.R`
-- Output:
-  - `beetle_tpa_by_cluster.pdf`
-  - `pixel_beetle_tpa_ndvi.csv`
-  - `pixel_beetle_tpa_ndwi.csv`
-  - `panel_beetle_ndvi.rds`
-  - `panel_beetle_ndwi.rds`
-
-Run 12: `pixel_approach/src/09_fire_validation.R`
-- Output:
-  - `fire_by_cluster.pdf`
-  - `pixel_fire_ndvi.csv`
-  - `pixel_fire_ndwi.csv`
-  - `panel_fire_ndvi.rds`
-  - `panel_fire_ndwi.rds`
-
-Run 13: `pixel_approach/src/10_lcmap_validation.R`
-- Output:
-  - `lcmap_by_cluster.pdf`
-  - `pixel_lcmap_ndvi.csv`
-  - `pixel_lcmap_ndwi.csv`
-  - `panel_lcmap_ndvi.rds`
-  - `panel_lcmap_ndwi.rds`
-
-Run 14: `pixel_approach/src/11_dashboard.R`
-- Output:
-  - `dashboard_ndvi.pdf`
-  - `dashboard_ndwi.pdf`
-
-Run 15: `pixel_approach/src/12_csd_rolling_timeline.R`
-- Output: `cluster_csd_rolling_timeline.pdf`
-
-Run 16: `pixel_approach/src/13_cluster_agreement_validation.R`
-- Output:
-  - `cluster_agreement_validation.pdf`
-  - `cluster_agreement_map.pdf`
+`pixel_approach/tests/` — testthat unit tests for the pixel pipeline. Run all: `testthat::test_dir("pixel_approach/tests")`.

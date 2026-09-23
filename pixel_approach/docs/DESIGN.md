@@ -129,14 +129,13 @@ Turns each pixel's CSD statistics into a stress tier (K-means), run independentl
 
      | Index | cor(tau_r1, base_level) | cor(tau_skew, base_level) |
      |---|---|---|
-     | NDVI | 0.30 | -0.15 |
-     | NDWI | 0.31 | -0.19 |
+     | NDVI | 0.30 | 0.15 |
+     | NDWI | 0.31 | 0.19 |
 
      Residualizing against `base_level` removes this confound (post-residualization correlation with `base_level` ~0, verified).
-5. Flip sign: `neg_resid_tau_skew = -resid_tau_skew`, so higher = more stressed, consistent with `resid_tau_r1`'s convention.
-6. Z-score both features (`resid_tau_r1`, `neg_resid_tau_skew`).
-7. K-means sweep K=2-8 (elbow + silhouette, for the chart), then fit K-means at K=3 (the chosen value).
-8. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) - mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed. Same unweighted-composite approach as the combined method below (see its note for why PC1 was tried and dropped).
+5. Z-score both features (`resid_tau_r1`, `resid_tau_skew`) — `resid_tau_skew` is kept unflipped, since skewness's direction near a transition depends on which state the system is heading toward (not universal like r1's "higher = more stressed"), so k-means is left to separate pixels by that direction rather than having it collapsed away.
+6. K-means sweep K=2-8 (elbow + silhouette, for the chart), then fit K-means at K=3 (the chosen value).
+7. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) + mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed. Same unweighted-composite approach as the combined method below (see its note for why PC1 was tried and dropped).
 
 **Parameters:**
 - `K = 3`
@@ -163,10 +162,11 @@ Checks whether the stress-tier clusters (from `06`) actually line up with real b
 
 **Output:** `pixel_approach/src/08_beetle_validation.R` →
 - `beetle_tpa_by_cluster.pdf`
+- `beetle_tpa_by_cluster_ratio.pdf` (same, bars as ratio vs. Cluster 1)
 - `pixel_beetle_tpa_ndvi.csv`
 - `pixel_beetle_tpa_ndwi.csv`
-- `panel_beetle_ndvi.rds` (saved plot panel, read by `11_dashboard.R`)
-- `panel_beetle_ndwi.rds` (saved plot panel, read by `11_dashboard.R`)
+- `panel_beetle_ndvi.rds`, `panel_beetle_ndvi_ratio.rds` (saved plot panels, read by `11_dashboard.R`)
+- `panel_beetle_ndwi.rds`, `panel_beetle_ndwi_ratio.rds`
 
 ## Validate clusters against fire exposure (2015-2016)
 
@@ -179,16 +179,17 @@ Checks whether the stress-tier clusters (from `06`) line up with real MTBS burn 
 
 **Output:** `pixel_approach/src/09_fire_validation.R` →
 - `fire_by_cluster.pdf`
+- `fire_by_cluster_ratio.pdf` (same, bars as ratio vs. Cluster 1)
 - `pixel_fire_ndvi.csv`
 - `pixel_fire_ndwi.csv`
-- `panel_fire_ndvi.rds` (saved plot panel, read by `11_dashboard.R`)
-- `panel_fire_ndwi.rds` (saved plot panel, read by `11_dashboard.R`)
+- `panel_fire_ndvi.rds`, `panel_fire_ndvi_ratio.rds` (saved plot panels, read by `11_dashboard.R`)
+- `panel_fire_ndwi.rds`, `panel_fire_ndwi_ratio.rds`
 
 ## Assemble a one-page validation summary per index
 - Combine the cluster map with the fire/beetle bar panels into a single page.
 - `pixel_approach/src/11_dashboard.R` →
-  - `dashboard_ndvi.pdf`
-  - `dashboard_ndwi.pdf`
+  - `dashboard_ndvi.pdf`, `dashboard_ndvi_ratio.pdf`
+  - `dashboard_ndwi.pdf`, `dashboard_ndwi_ratio.pdf`
 
 ## Cluster pixels into stress tiers, combined NDVI+NDWI
 
@@ -196,7 +197,7 @@ Exploratory alternative to the per-index clustering above: instead of clustering
 
 **Mechanism, step by step:**
 1. Load `tau_r1, tau_skew` for both NDVI and NDWI; inner-join on `pixel_id` (only pixels with a valid tau for both indices). This makes the combined study population smaller than either independent run: NDVI-only (06) has 219,670 pixels, NDWI-only (06) has 219,684, combined (06b) has 219,637 — the exact intersection, dropping 33 pixels valid for NDVI but not NDWI and 47 valid for NDWI but not NDVI (80 total, ~0.036% of the population).
-2. Exclude burned pixels, compute `base_level`, residualize `tau_r1`/`tau_skew` against it, and flip skew's sign — same as `06`'s steps 2-5, applied once per index via the shared `compute_base_level()`/`residualize_tau()` helpers in `clustering_helpers.R`.
+2. Exclude burned pixels, compute `base_level`, and residualize `tau_r1`/`tau_skew` against it — same as `06`'s steps 2-4, applied once per index via the shared `compute_base_level()`/`residualize_tau()` helpers in `clustering_helpers.R`.
 3. Z-score all 4 features, K-means sweep K=2-8, fit K-means at the chosen K.
 4. Relabel clusters by stress rank using an unweighted sum of the same 4 z-scored features. An earlier version used PC1 (first principal component) instead, reasoned that NDVI/NDWI's weak cross-index correlation (r1: r=0.20; skew: r=-0.15) meant equal weights weren't well-supported. Tested directly: PC1 explains only 30.8% of variance (barely above the 25% no-structure baseline) and gives `tau_skew_ndvi` a counterintuitive negative loading (-0.293) — but re-ranking the same raw K-means clusters with PC1 vs. the unweighted sum produces 100% identical cluster assignments. Since the two are provably equivalent here, the simpler unweighted sum is used.
 
@@ -215,8 +216,9 @@ Same role as `08_beetle_validation.R`, but for the combined clustering — one c
 
 **Output:** `pixel_approach/src/08b_beetle_validation_combined.R` →
 - `combined_beetle_tpa_by_cluster.pdf`
+- `combined_beetle_tpa_by_cluster_ratio.pdf` (same, bars as ratio vs. Cluster 1)
 - `combined_pixel_beetle_tpa.csv`
-- `panel_beetle_combined.rds` (saved plot panel, read by `11b_dashboard_combined.R`)
+- `panel_beetle_combined.rds`, `panel_beetle_combined_ratio.rds` (saved plot panels, read by `11b_dashboard_combined.R`)
 
 ## Validate combined clusters against fire exposure (2015-2016)
 
@@ -224,13 +226,14 @@ Same role as `09_fire_validation.R`, but for the combined clustering.
 
 **Output:** `pixel_approach/src/09b_fire_validation_combined.R` →
 - `combined_fire_by_cluster.pdf`
+- `combined_fire_by_cluster_ratio.pdf` (same, bars as ratio vs. Cluster 1)
 - `combined_pixel_fire.csv`
-- `panel_fire_combined.rds` (saved plot panel, read by `11b_dashboard_combined.R`)
+- `panel_fire_combined.rds`, `panel_fire_combined_ratio.rds` (saved plot panels, read by `11b_dashboard_combined.R`)
 
 ## Assemble a one-page validation summary, combined
 - Same role as `11_dashboard.R`, but for the combined clustering — one cluster assignment per pixel, so one output file, not two.
 - `pixel_approach/src/11b_dashboard_combined.R` →
-  - `dashboard_combined.pdf`
+  - `dashboard_combined.pdf`, `dashboard_combined_ratio.pdf`
 
 ## Trace CSD statistics over time, by cluster
 - Reconstruct each pixel's climate-corrected residual from saved STL/climate coefficients, average the rolling level/r1/skew trajectories within each cluster (2005–2014) to see whether the trend predates the 2012 drought onset.
@@ -252,6 +255,7 @@ Tests whether the combined 4-feature clustering (`06b`) is rediscovering the sam
 - Real-world 2015-2016 damage rates are cleanly ordered: pixels flagged by neither method (19.6% beetle mortality, 2.5% fire) < flagged by one method only (~22-23% beetle, ~2.9% fire, with "combined only" and "agreement only" performing about equally) < flagged by both methods (25.9% beetle, 4.4% fire). Agreement between the two independently-built methods is the strongest signal; in the disagreement zone, neither method is clearly better than the other.
 - `pixel_approach/src/14_combined_vs_agreement.R` →
   - `combined_vs_agreement.pdf`
+  - `combined_vs_agreement.png` (used for the slide embed; PDF renders "∩" as "." in its embedded font)
   - `combined_vs_agreement.csv`
 
 ---
@@ -269,13 +273,13 @@ Tests whether the combined 4-feature clustering (`06b`) is rediscovering the sam
 | `pixel_approach/src/03_pixel_stl_csd.R` | `pixel_approach/data/processed/ndvi_pixel_tau.csv`<br>`pixel_approach/data/processed/ndwi_pixel_tau.csv`<br>`pixel_approach/data/processed/ndvi_rolling_r1.rds`<br>`pixel_approach/data/processed/ndvi_rolling_var.rds`<br>`pixel_approach/data/processed/ndvi_rolling_skew.rds`<br>`pixel_approach/data/processed/ndwi_rolling_r1.rds`<br>`pixel_approach/data/processed/ndwi_rolling_var.rds`<br>`pixel_approach/data/processed/ndwi_rolling_skew.rds` |
 | `pixel_approach/src/05_heatmaps.R` | `pixel_approach/charts/heatmap_tau_r1.pdf`<br>`pixel_approach/charts/heatmap_tau_var.pdf`<br>`pixel_approach/charts/heatmap_tau_skew.pdf` |
 | `pixel_approach/src/06_clustering.R` | `pixel_approach/data/processed/ndvi_pixel_clusters.csv`<br>`pixel_approach/data/processed/ndwi_pixel_clusters.csv`<br>`pixel_approach/data/processed/cluster_profile_ndvi.csv`<br>`pixel_approach/data/processed/cluster_profile_ndwi.csv`<br>`pixel_approach/charts/cluster_k_sweep.pdf`<br>`pixel_approach/charts/cluster_map.pdf` |
-| `pixel_approach/src/08_beetle_validation.R` | `pixel_approach/charts/beetle_tpa_by_cluster.pdf`<br>`pixel_approach/data/processed/pixel_beetle_tpa_ndvi.csv`<br>`pixel_approach/data/processed/pixel_beetle_tpa_ndwi.csv`<br>`pixel_approach/data/processed/panel_beetle_ndvi.rds`<br>`pixel_approach/data/processed/panel_beetle_ndwi.rds` |
-| `pixel_approach/src/09_fire_validation.R` | `pixel_approach/charts/fire_by_cluster.pdf`<br>`pixel_approach/data/processed/pixel_fire_ndvi.csv`<br>`pixel_approach/data/processed/pixel_fire_ndwi.csv`<br>`pixel_approach/data/processed/panel_fire_ndvi.rds`<br>`pixel_approach/data/processed/panel_fire_ndwi.rds` |
-| `pixel_approach/src/11_dashboard.R` | `pixel_approach/charts/dashboard_ndvi.pdf`<br>`pixel_approach/charts/dashboard_ndwi.pdf` |
+| `pixel_approach/src/08_beetle_validation.R` | `pixel_approach/charts/beetle_tpa_by_cluster.pdf`<br>`pixel_approach/charts/beetle_tpa_by_cluster_ratio.pdf`<br>`pixel_approach/data/processed/pixel_beetle_tpa_ndvi.csv`<br>`pixel_approach/data/processed/pixel_beetle_tpa_ndwi.csv`<br>`pixel_approach/data/processed/panel_beetle_ndvi.rds`<br>`pixel_approach/data/processed/panel_beetle_ndvi_ratio.rds`<br>`pixel_approach/data/processed/panel_beetle_ndwi.rds`<br>`pixel_approach/data/processed/panel_beetle_ndwi_ratio.rds` |
+| `pixel_approach/src/09_fire_validation.R` | `pixel_approach/charts/fire_by_cluster.pdf`<br>`pixel_approach/charts/fire_by_cluster_ratio.pdf`<br>`pixel_approach/data/processed/pixel_fire_ndvi.csv`<br>`pixel_approach/data/processed/pixel_fire_ndwi.csv`<br>`pixel_approach/data/processed/panel_fire_ndvi.rds`<br>`pixel_approach/data/processed/panel_fire_ndvi_ratio.rds`<br>`pixel_approach/data/processed/panel_fire_ndwi.rds`<br>`pixel_approach/data/processed/panel_fire_ndwi_ratio.rds` |
+| `pixel_approach/src/11_dashboard.R` | `pixel_approach/charts/dashboard_ndvi.pdf`<br>`pixel_approach/charts/dashboard_ndvi_ratio.pdf`<br>`pixel_approach/charts/dashboard_ndwi.pdf`<br>`pixel_approach/charts/dashboard_ndwi_ratio.pdf` |
 | `pixel_approach/src/06b_clustering_combined.R` | `pixel_approach/data/processed/combined_pixel_clusters.csv`<br>`pixel_approach/data/processed/combined_cluster_profile.csv`<br>`pixel_approach/charts/combined_cluster_k_sweep.pdf`<br>`pixel_approach/charts/combined_cluster_map.pdf` |
-| `pixel_approach/src/08b_beetle_validation_combined.R` | `pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf`<br>`pixel_approach/data/processed/combined_pixel_beetle_tpa.csv`<br>`pixel_approach/data/processed/panel_beetle_combined.rds` |
-| `pixel_approach/src/09b_fire_validation_combined.R` | `pixel_approach/charts/combined_fire_by_cluster.pdf`<br>`pixel_approach/data/processed/combined_pixel_fire.csv`<br>`pixel_approach/data/processed/panel_fire_combined.rds` |
-| `pixel_approach/src/11b_dashboard_combined.R` | `pixel_approach/charts/dashboard_combined.pdf` |
+| `pixel_approach/src/08b_beetle_validation_combined.R` | `pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf`<br>`pixel_approach/charts/combined_beetle_tpa_by_cluster_ratio.pdf`<br>`pixel_approach/data/processed/combined_pixel_beetle_tpa.csv`<br>`pixel_approach/data/processed/panel_beetle_combined.rds`<br>`pixel_approach/data/processed/panel_beetle_combined_ratio.rds` |
+| `pixel_approach/src/09b_fire_validation_combined.R` | `pixel_approach/charts/combined_fire_by_cluster.pdf`<br>`pixel_approach/charts/combined_fire_by_cluster_ratio.pdf`<br>`pixel_approach/data/processed/combined_pixel_fire.csv`<br>`pixel_approach/data/processed/panel_fire_combined.rds`<br>`pixel_approach/data/processed/panel_fire_combined_ratio.rds` |
+| `pixel_approach/src/11b_dashboard_combined.R` | `pixel_approach/charts/dashboard_combined.pdf`<br>`pixel_approach/charts/dashboard_combined_ratio.pdf` |
 | `pixel_approach/src/12_csd_rolling_timeline.R` | `pixel_approach/charts/cluster_csd_rolling_timeline.pdf` |
 | `pixel_approach/src/13_cluster_agreement_validation.R` | `pixel_approach/charts/cluster_agreement_validation.pdf`<br>`pixel_approach/charts/cluster_agreement_map.pdf` |
-| `pixel_approach/src/14_combined_vs_agreement.R` | `pixel_approach/charts/combined_vs_agreement.pdf`<br>`pixel_approach/data/processed/combined_vs_agreement.csv` |
+| `pixel_approach/src/14_combined_vs_agreement.R` | `pixel_approach/charts/combined_vs_agreement.pdf`<br>`pixel_approach/charts/combined_vs_agreement.png`<br>`pixel_approach/data/processed/combined_vs_agreement.csv` |

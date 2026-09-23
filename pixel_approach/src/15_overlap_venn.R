@@ -3,7 +3,7 @@ library(sf)
 
 # A single 3-circle Venn diagram (NDVI Most-stressed, NDWI Most-stressed,
 # Combined Most-stressed) showing how the "strongest signal" group on slide
-# 17 (combined_vs_agreement.pdf) is built up: NDVI ∩ NDWI = O1, and
+# 16 (combined_vs_agreement.pdf) is built up: NDVI ∩ NDWI = O1, and
 # NDVI ∩ NDWI ∩ Combined = "Both" (strongest). Circles are color-only --
 # no in-circle text -- the deck itself adds a legend next to the image
 # mapping each color/overlap to its label and real-world rate.

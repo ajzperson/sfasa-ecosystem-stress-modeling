@@ -22,12 +22,12 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 4. **PRISM** — Temperature + Precipitation
 5. **NDVI** — Normalized Difference Vegetation Index (NASA MODIS)
 6. **NDWI** — Normalized Difference Water Index (NASA MODIS)
-7. **SWE** — Snow Water Equivalent (TerraClimate) *(downloaded, not currently used)*
+7. **SWE** — Snow Water Equivalent (TerraClimate) *(used by county_approach only)*
 8. **USFS IDS** — Forest Damage / Tree Mortality (Insect and Disease Survey)<br>
    USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS)
-9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(downloaded, superseded by MTBS, not currently used)*
+9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) *(superseded by MTBS in pixel_approach; still used by county_approach)*
 10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity)
-11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm). Two layers: `LCPRI` + `LCACHG` *(downloaded, not currently used — see below)*
+11. **LCMAP** — Land Change Monitoring, Assessment, and Projection (pixel-level land cover / land cover change, USGS CCDC algorithm). Two layers: `LCPRI` + `LCACHG` *(evaluated and dropped — raw data removed from disk, see below)*
 
 ### Raw Data Inventory
 
@@ -39,11 +39,11 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 | PRISM | `data_common/raw/prism/prismz.zip` (Google Drive, ~2,103 MB)<br>See [PRISM_source_location.md](../data_common/raw/prism/PRISM_source_location.md) | `get_prism_monthlys(type = "ppt", years = 2000:2026, keepZip = FALSE)`<br>`get_prism_monthlys(type = "tmean", years = 2000:2026, keepZip = FALSE)`<br>`get_prism_monthlys(type = "tmin", years = 2000:2026, keepZip = FALSE)`<br>`get_prism_monthlys(type = "tmax", years = 2000:2026, keepZip = FALSE)` | 2000-01-01 to 2026-05-01 · 317 months · Full CONUS · ~4 km |
 | NDVI | `data_common/raw/ndvi/MOD13A1.061_500m_aid0001.nc` (Google Drive, ~1,019 MB)<br>See [NDVI_source_location.md](../data_common/raw/ndvi/NDVI_source_location.md) | [NASA AppEEARS](https://appeears.earthdatacloud.nasa.gov/) (NASA Earthdata account required)<br>Area Sample request<br>Product: Terra MODIS Vegetation Indices (NDVI & EVI), MOD13A1.061, 500m, 16-day (2000-02-18 to Present)<br>Layer: `_500m_16_days_NDVI`<br>Upload polygon: `docs_common/sierra_nevada_boundary.geojson`<br>Date range: 2000-01-01 to 2026-05-31<br>Output: NetCDF-4<br>Projection: MODIS Sinusoidal | 2000-02-18 to 2026-05-25 · 605 16-day time steps · clipped to `sierra_nevada_boundary.geojson` · 500m |
 | NDWI | `data_common/raw/ndwi/MOD09A1.061_500m_aid0001.nc` (Google Drive, ~1,011 MB)<br>See [NDWI_source_location.md](../data_common/raw/ndwi/NDWI_source_location.md) | [NASA AppEEARS](https://appeears.earthdatacloud.nasa.gov/) (NASA Earthdata account required)<br>Area Sample request<br>Product: Terra MODIS Surface Reflectance Bands 1-7, MOD09A1.061, 500m, 8-day (2000-02-24 to Present)<br>Layers: `sur_refl_b02` (841–876nm) + `sur_refl_b05` (1230–1250nm)<br>Upload polygon: `docs_common/sierra_nevada_boundary.geojson`<br>Date range: 2000-01-01 to 2026-05-31<br>Output: NetCDF-4<br>Projection: MODIS Sinusoidal<br>NDWI = (B02 − B05) / (B02 + B05) computed locally after download, per [Gao 1996](https://doi.org/10.1016/S0034-4257(96)00067-3) — Gao's formula specifies 0.86μm and 1.24μm exactly, which Band 2 (858nm center) and Band 5 (1240nm center) match; Band 6 (1628–1652nm) is a different SWIR region used by other, separately-named indices | 2000-02-18 to 2026-05-25 · 8-day composites · clipped to `sierra_nevada_boundary.geojson` · 500m |
-| SWE *(unused)* | `data_common/raw/swe/TerraClimate_swe_2000-2025.nc` | `swe_raw <- getTerraClim(`<br>`  AOI       = sn_aoi,`<br>`  varname   = "swe",`<br>`  startDate = "2000-01-01",`<br>`  endDate   = "2025-12-31"`<br>`)` | 2000-01-01 to 2025-12-01 · 312 months · clipped to Sierra Nevada ecoregion boundary · ~4 km |
+| SWE *(county_approach only)* | `data_common/raw/swe/TerraClimate_swe_2000-2025.nc` | `swe_raw <- getTerraClim(`<br>`  AOI       = sn_aoi,`<br>`  varname   = "swe",`<br>`  startDate = "2000-01-01",`<br>`  endDate   = "2025-12-31"`<br>`)` | 2000-01-01 to 2025-12-01 · 312 months · clipped to Sierra Nevada ecoregion boundary · ~4 km |
 | Forest Damage | `data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip` (Google Drive, ~166 MB)<br>See [FOREST_DAMAGE_source_location.md](../data_common/raw/forest_damage/FOREST_DAMAGE_source_location.md) | [USDA Forest Service Detection Surveys](https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/detection-surveys)<br>Scroll to "R5 IDS DATA DOWNLOADS" section<br>Download "R5 CA All Years IDS Data (ZIP, 159 MB)"<br>[Direct URL](https://www.fs.usda.gov/foresthealth/docs/IDS_Data_for_Download/CONUS_Region5_AllYears.gdb.zip)<br>No login required | 1997–2025 · annual · 348,829 damage polygons (99.2% Region 5 California; 0.8% spillover from neighboring Regions 4/6) |
-| Fire Perimeters *(superseded by MTBS, unused)* | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg` (Google Drive, ~147 MB)<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
+| Fire Perimeters *(county_approach only)* | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg` (Google Drive, ~147 MB)<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
 | MTBS | `data_common/raw/mtbs/bsp_ugjds3epryqgif0ej5sb.zip` | [MTBS Burn Severity Direct Download](https://burnseverity.cr.usgs.gov/direct-download)<br>Click "MTBS" → select California → select years 2000-2019 (single multi-year request supported)<br>Request is processed asynchronously (~1 hour); download link sent via email | California, 2000–2019 · annual thematic burn severity mosaics · GeoTIFF · 30m |
-| LCMAP *(unused)* | `data_common/raw/lcmap/LCMAP_CU_20xx_V13_LCACHG.tif`<br>`data_common/raw/lcmap/LCMAP_CU_20xx_V13_LCPRI.tif`<br>See [LCMAP_source_location.md](../data_common/raw/lcmap/LCMAP_source_location.md) | [LCMAP Mosaic Download](https://eros.usgs.gov/lcmap/apps/data-downloads)<br>Layers: `LCPRI` (Primary Land Cover) + `LCACHG` (Annual Land Cover Change)<br>Years: 2015-2019 (5 years × 2 layers) | Full CONUS (clipped to Sierra Nevada after download) · annual · GeoTIFF · 30m |
+| LCMAP *(dropped, not on disk)* | Previously `data_common/raw/lcmap/LCMAP_CU_20xx_V13_LCACHG.tif` + `LCPRI.tif` (2015–2019), removed after evaluation — see below | [LCMAP Mosaic Download](https://eros.usgs.gov/lcmap/apps/data-downloads)<br>Layers: `LCPRI` (Primary Land Cover) + `LCACHG` (Annual Land Cover Change)<br>Years: 2015-2019 (5 years × 2 layers) | Full CONUS (clipped to Sierra Nevada after download) · annual · GeoTIFF · 30m |
 
 ---
 
@@ -88,18 +88,19 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 ### NDWI — Normalized Difference Water Index (NASA MODIS)
 - **Variable:** `NDWI` (unitless index, range -1 to 1; NDWI = (B02 − B05) / (B02 + B05), see formula in table above)
 
-### SWE — Snow Water Equivalent (TerraClimate) *(not currently used)*
+### SWE — Snow Water Equivalent (TerraClimate) *(used by county_approach only)*
 - **Variable:** `swe` (Snow Water Equivalent, mm)
 - `src_common/01b_download_swe.R` → `data_common/raw/swe/TerraClimate_swe_2000-2025.nc`
+- Not part of the pixel_approach pipeline; consumed by `county_approach/src/03b_process_swe.R`.
 
 ### USFS IDS — Forest Damage / Tree Mortality
 - **Variable:** `LEGACY_TPA` (trees per acre killed)
 - Raw layer (`DAMAGE_AREAS_FLAT_AllYears_CONUS_Rgn5`) covers all forest damage causal agents (insects, disease, abiotic), not just bark beetle — downstream processing filters to bark-beetle-specific damage causal agent codes.
 - **Why acquired:** Bark beetle infestation is a candidate mechanism behind loss of resilience — used as ground-truth validation against modeled collapse signal.
 
-### Fire Perimeters — CAL FIRE FRAP Historical Fire Perimeters *(superseded by MTBS)*
+### Fire Perimeters — CAL FIRE FRAP Historical Fire Perimeters *(superseded by MTBS in pixel_approach)*
 - **Variable:** none — polygon geometry only (fire boundary), no per-pixel numeric field used.
-- **Why acquired:** distinguishes fire-caused NDVI decline from drought/climate-driven decline. Superseded by MTBS (below) for this purpose — a perimeter is only a fire's outer boundary, not per-pixel severity. Raw data kept on disk but no longer used in the active pipeline.
+- **Why acquired:** distinguishes fire-caused NDVI decline from drought/climate-driven decline. Superseded by MTBS (below) for pixel_approach's fire-confound/validation use — a perimeter is only a fire's outer boundary, not per-pixel severity. Still used by `county_approach/src/05b_fire_mask.R`.
 
 ### MTBS — Monitoring Trends in Burn Severity
 - **Variable:** categorical severity class code per pixel, per MTBS's own raster metadata (this pipeline treats 3/4 as "burned"):
@@ -120,10 +121,11 @@ Case Study: The 2012–2016 Sierra Nevada Canopy Collapse
 - [MTBS home](https://www.mtbs.gov/)
 - [MTBS Product Descriptions](https://www.mtbs.gov/product-descriptions)
 
-### LCMAP — Land Change Monitoring, Assessment, and Projection *(not currently used)*
+### LCMAP — Land Change Monitoring, Assessment, and Projection *(dropped — raw data removed from disk)*
 - **Variable:** `LCACHG` — its own two-digit code already encodes both the prior and current year's land cover class, so `LCPRI` isn't needed separately. Tree-cover loss = any value in {41, 42, 43, 45, 46, 47, 48} (prior class 4 = tree, per USGS LCMAP Data Format Control Book, LSDS-2074, Table 2-4).
 - **Why acquired:** an independent tree-cover-loss/mortality validation signal, alongside the bark beetle ADS data. LCMAP's CCDC algorithm is built from multi-band (green/red/NIR/SWIR) Landsat spectral time series with harmonic modeling and break detection — a genuinely different methodology from a vegetation-index (NDVI/NDWI) trend line, avoiding circularity between the collapse-detection method and its own validation data.
 - **Why dropped:** CCDC's break detection is tuned to abrupt disturbance (fire, harvest), not the slow, gradual pre-tipping-point decline CSD is built to detect — a structural mismatch, not a data quality issue.
+- No code references it anymore; the ~9.9GB of rasters were removed from `data_common/raw/lcmap/`. Re-download via the link above if ever needed again.
 
 **References**:
 - [USGS LCMAP Collection 1.3](https://www.usgs.gov/data/lcmap-land-cover-and-land-change-conterminous-us-collection-13)

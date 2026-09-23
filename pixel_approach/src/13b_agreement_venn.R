@@ -1,13 +1,13 @@
 library(tidyverse)
 
 # A 2-circle Venn diagram (NDVI Most-stressed, NDWI Most-stressed) for
-# slide 15 ("Where NDVI and NDWI independently agree, the signal is
-# strongest") -- same visual language as 15_overlap_venn.R (slide 16), but
-# simpler: 13_cluster_agreement_validation.R only ever compares NDVI-alone
-# vs NDWI-alone directly (no Combined circle, and "Neither" is deliberately
-# dropped -- "not the question this script asks", per that script's own
-# comment), so this Venn only needs the two circles plus their overlap, no
-# G4/outer boundary.
+# slide 15 (agreement between NDVI and NDWI predicts higher real-world
+# damage than either flags alone) -- same visual language as
+# 15_overlap_venn.R (slide 16), but simpler: 13_cluster_agreement_validation.R
+# only ever compares NDVI-alone vs NDWI-alone directly (no Combined circle,
+# and "Neither" is deliberately dropped -- "not the question this script
+# asks", per that script's own comment), so this Venn only needs the two
+# circles plus their overlap, no G4/outer boundary.
 #
 # Colors are red-family tints, matching 15_overlap_venn.R's NDVI_3/NDWI_3
 # tiers exactly (same clusters, so same color in both places) -- #D73027,

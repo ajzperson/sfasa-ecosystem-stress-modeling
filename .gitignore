@@ -1,6 +1,16 @@
 # Large generated data matrices (too big for git)
 *.rds
 
+# Exceptions: small chart-panel .rds files, all well under 50MB
+!pixel_approach/data/processed/panel_beetle_ndvi_ratio.rds
+!pixel_approach/data/processed/panel_beetle_ndwi_ratio.rds
+!pixel_approach/data/processed/panel_fire_ndvi_ratio.rds
+!pixel_approach/data/processed/panel_fire_ndwi_ratio.rds
+!pixel_approach/data/processed/panel_beetle_combined.rds
+!pixel_approach/data/processed/panel_beetle_combined_ratio.rds
+!pixel_approach/data/processed/panel_fire_combined.rds
+!pixel_approach/data/processed/panel_fire_combined_ratio.rds
+
 # Large raw satellite data (too big for git; see *_source_location.md)
 data_common/raw/ndvi/*.nc
 data_common/raw/ndwi/*.nc

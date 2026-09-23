@@ -131,7 +131,7 @@ run_pixel_csd <- function(mat, var_label, out_file,
 
   # process_pixel() is defined inside this function, so its closure
   # captures this whole frame by reference — including arguments it never
-  # touches. vpd_mat_full/ppt_mat_full (~409 MiB each, full Feb 2000-Dec
+  # touches. vpd_mat_full/ppt_mat_full (~390 MiB each, full Feb 2000-Dec
   # 2016 range) are superseded by the trimmed vpd_mat/ppt_mat above but
   # would otherwise still be reachable from process_pixel's environment,
   # roughly doubling what future_lapply() ships to every worker. Drop them

@@ -9,8 +9,7 @@ library(terra)
 # Output:
 #   pixel_approach/data/processed/swe_matrix.rds — 251971 × 203 months
 # Row order matches pixel_metadata.csv (indexed by pixel_id).
-# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2016 (extended from Dec 2014 to
-# cover the 2015-2016 validation window).
+# Column names: "YYYY-MM-DD", Feb 2000 – Dec 2016.
 
 target_dates <- seq(as.Date("2000-02-01"), as.Date("2016-12-01"), by = "month")
 target_ym    <- format(target_dates, "%Y%m")
