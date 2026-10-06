@@ -1,14 +1,14 @@
 library(testthat)
 library(tidyverse)
 
-# Loads only rate()/circle_pts() from 13b_agreement_venn.R -- both pure
+# Loads only rate()/circle_pts() from 14b_agreement_venn.R -- both pure
 # functions with no free-variable dependencies. Real ~250k-pixel data load
 # (d <- read_csv(...)) and everything downstream of it (group filters,
 # chart) are skipped; the group-filter logic itself (ndvi_cluster == 3 &
 # ndwi_cluster != 3, etc.) is the same case-when-style classification
 # already covered by test-13-cluster-agreement-validation.R, so isn't
 # duplicated here.
-exprs    <- parse("../src/13b_agreement_venn.R")
+exprs    <- parse("../src/14b_agreement_venn.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
   "^d <-|^ndvi_only <-|^ndwi_only <-|^both <-|^ndvi_n <-|^ndvi_fire <-|^ndwi_n <-|^ndwi_fire <-|^both_n <-|^both_fire <-|^cat\\(",
