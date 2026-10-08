@@ -5,7 +5,7 @@ library(sf)
 # Loads rate()/circle_pts()/deg2rad() and the O1/O2/both group filters
 # from 15_overlap_venn.R, stopping before the sf polygon-boolean geometry
 # and chart. rate()/circle_pts() are exact duplicates of
-# test-14b-agreement-venn.R's copies (this repo keeps a separate copy per
+# 14b_agreement_venn.R's copies (this repo keeps a separate copy per
 # script rather than sharing them) -- only lightly smoke-tested here to
 # confirm this copy is wired the same way, not re-deriving every edge case.
 exprs    <- parse("../src/15_overlap_venn.R")

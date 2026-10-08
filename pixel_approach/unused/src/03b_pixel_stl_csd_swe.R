@@ -106,7 +106,7 @@ edge_na_run <- function(x) {
 
 # Runs the full STL + climate-correction + rolling-CSD pipeline for one
 # vegetation index. Generic over `mat` — nothing below assumes NDVI
-# specifically, so the same code produces pixel_tau_swe.csv for NDVI and
+# specifically, so the same code produces ndvi_pixel_tau_swe.csv for NDVI and
 # ndwi_pixel_tau_swe.csv for NDWI.
 run_pixel_csd <- function(mat, var_label, out_file,
                            rolling_r1_file, rolling_var_file, rolling_skew_file,
@@ -141,8 +141,8 @@ run_pixel_csd <- function(mat, var_label, out_file,
   cat(sprintf("✓ Pixels: %d | WIN: %d months | NA threshold: %.0f%%\n",
               n_pixels, WIN, NA_THRESHOLD * 100))
 
-  # Growing-season index — filter to Mar–Nov after STL (same as cluster-level
-  # CSD in county_approach/src/11_1_csd_manual.R). STL still runs on all 12 months.
+  # Growing-season index — filter to Mar–Nov after STL.
+  # STL still runs on all 12 months.
   col_dates  <- as.Date(colnames(mat))
   col_months <- as.integer(format(col_dates, "%m"))
   gs_idx     <- which(col_months %in% 3:11)
@@ -195,7 +195,7 @@ run_pixel_csd <- function(mat, var_label, out_file,
   # tau) is fully independent of every other pixel, so this is embarrassingly
   # parallel. Each call returns a status string plus its result row (NA row if
   # dropped); both are tabulated together after future_lapply() finishes.
-  # process_pixel() is assigned into .GlobalEnv below (see note before
+  # process_pixel()'s environment is set to .GlobalEnv below (see note before
   # future_lapply) so future/globals doesn't serialize a whole closure
   # frame. Everything it reads from outside its own body is therefore a
   # ".pp_"-prefixed global, not the bare local names above — bare names
@@ -229,8 +229,7 @@ run_pixel_csd <- function(mat, var_label, out_file,
       return(list(status = "dropped_stl_fail", row = .pp_na_row,
                   r1_series = .pp_na_series, var_series = .pp_na_series, skew_series = .pp_na_series))
 
-    # y_deseas = y - seasonal component (keeps trend + remainder). Same
-    # approach as cluster-level county_approach/src/11_1_csd_manual.R.
+    # y_deseas = y - seasonal component (keeps trend + remainder).
     seasonal <- as.numeric(decomp$time.series[, "seasonal"])
     y_deseas <- y - seasonal
 

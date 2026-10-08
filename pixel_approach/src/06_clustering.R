@@ -1,8 +1,6 @@
 library(tidyverse)
 library(sf)
 library(patchwork)
-library(multcompView)
-library(ggsignif)
 library(cluster)
 
 source("pixel_approach/src/clustering_helpers.R")
@@ -241,8 +239,7 @@ cat("✓ Saved: pixel_approach/charts/cluster_map.pdf\n")
 # object embeds its full underlying data, and this map plots ~220k raw
 # points, making each serialized panel ~175MB. 11_dashboard.R instead
 # rebuilds this panel directly from ndvi_pixel_clusters.csv/
-# ndwi_pixel_clusters.csv (cheap, and that data already persists), reusing
-# the same styling as build_map_panel() above.
+# ndwi_pixel_clusters.csv (cheap, and that data already persists).
 
 # # ----------------------------------------------------------------------------
 # # ANOVA + Tukey HSD on each index's own actual-drop column by cluster.

@@ -8,7 +8,7 @@ source("pixel_approach/src/clustering_helpers.R")
 # map beside the two real-world validator bars -- same role as
 # 11_dashboard.R, but for the combined approach instead of per-index. Only
 # one cluster assignment per pixel now, so one output file, not two.
-# Assembled from panels saved by 06b_clustering_combined.R/
+# Assembled from files saved by 06b_clustering_combined.R/
 # 09b_fire_validation_combined.R/08b_beetle_validation_combined.R -- run
 # those three first (in any order; this script only reads their saved
 # outputs, it doesn't recompute anything itself).

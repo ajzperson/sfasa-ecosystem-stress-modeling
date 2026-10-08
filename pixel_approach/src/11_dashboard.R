@@ -5,7 +5,7 @@ library(patchwork)
 source("pixel_approach/src/clustering_helpers.R")
 
 # One-page-per-index summary: cluster map beside the two real-world
-# validator bars (fire, beetle), stacked. Assembled from panels saved by
+# validator bars (fire, beetle), stacked. Assembled from files saved by
 # 06_clustering.R/09_fire_validation.R/08_beetle_validation.R -- run those
 # three first (in any order; this script only reads their saved outputs, it
 # doesn't recompute anything itself).
@@ -60,7 +60,7 @@ build_map_panel <- function(clusters_path, label) {
       # Legend inset into the panel's upper-right corner, which is genuinely
       # empty of data (lat > 38.0 & lon > -119.15 has zero pixels, for both
       # NDVI and NDWI) -- a side legend was tried and abandoned:
-      # patchwork gives a coord_sf-locked panel a column sized to its own
+      # patchwork gives a coord_fixed-locked panel a column sized to its own
       # aspect ratio and centers the (narrower) panel within it, leaving a
       # large dead gap before the legend that neither plot_layout() width
       # ratios, legend.box.spacing, nor patchwork::free() could close

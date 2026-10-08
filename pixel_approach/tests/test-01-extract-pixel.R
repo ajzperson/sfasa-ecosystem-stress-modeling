@@ -170,9 +170,8 @@ test_that("NDWI formula computes correctly and QC-masks bad-quality cells", {
 # ----------------------------------------------------------------------------
 # NDVI-specific logic from 01_extract_pixel_ndvi.R (VI_Quality QC masking) —
 # deliberately more lenient than NDWI's (accepts bits 0-1 <= 2, not == 0 only;
-# only bits 11 "not produced" are dropped; see that script's header comment
-# for why). Tested directly since it lives inline in that script, not in a
-# function.
+# only bits 11 "not produced" are dropped). Tested directly since it lives
+# inline in that script, not in a function.
 # ----------------------------------------------------------------------------
 
 test_that("VI_Quality bit-extraction (%% 4) matches real MOD13A1 values", {

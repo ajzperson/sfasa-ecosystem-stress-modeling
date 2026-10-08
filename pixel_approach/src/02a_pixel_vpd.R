@@ -18,7 +18,7 @@ cat(sprintf("✓ %d pixel centroids\n", nrow(pts)))
 
 cat("Loading VPD (TerraClimate)...\n")
 vpd_rast <- rast("data_common/raw/vpd/TerraClimate_vpd_2000-2025.nc")
-crs(vpd_rast) <- "EPSG:4326"   # WGS84 — not embedded in the file
+crs(vpd_rast) <- "EPSG:4326"
 
 vpd_ym   <- format(time(vpd_rast), "%Y%m")
 keep_v   <- which(vpd_ym %in% target_ym)

@@ -22,7 +22,7 @@ cat(sprintf("✓ %d pixel centroids\n", nrow(pts)))
 
 cat("Loading SWE (TerraClimate)...\n")
 swe_rast <- rast("data_common/raw/swe/TerraClimate_swe_2000-2025.nc")
-crs(swe_rast) <- "EPSG:4326"   # WGS84 — not embedded in the file
+crs(swe_rast) <- "EPSG:4326"
 
 swe_ym   <- format(time(swe_rast), "%Y%m")
 keep_s   <- which(swe_ym %in% target_ym)

@@ -6,7 +6,7 @@ library(cluster)
 # 06b_clustering_combined.R (combined NDVI+NDWI) -- the two scripts differ
 # in how many features they cluster on (2 vs 4) and relabel clusters by
 # stress rank the same way (unweighted composite sum of the residualized
-# features), but share everything else: baseline-density residualization,
+# features; 06b z-scores them first), but share everything else: baseline-density residualization,
 # the K-sweep loop, and the two chart builders. Sourced by both, not run
 # standalone.
 

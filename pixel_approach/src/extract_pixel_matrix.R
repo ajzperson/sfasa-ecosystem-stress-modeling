@@ -40,7 +40,7 @@ extract_pixel_matrix <- function(r, dates, sn_boundary,
   # Rename layers to clean date strings (tapp names them by group label).
   # Assumes tapp's groups line up 1:1 and in order with target_months —
   # true for the current MODIS data (no missing months), but not
-  # guaranteed by tapp() itself, so assert it rather than silently
+  # guaranteed by tapp() itself, so check the layer count rather than silently
   # mislabeling dates if that ever changes.
   target_months <- seq(floor_date(min(dates), "month"),
                         floor_date(max(dates), "month"), by = "month")

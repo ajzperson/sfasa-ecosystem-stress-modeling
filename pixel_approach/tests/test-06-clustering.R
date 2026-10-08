@@ -1,8 +1,6 @@
 library(testthat)
 library(tidyverse)
 library(patchwork)
-library(multcompView)
-library(ggsignif)
 library(cluster)
 
 # run_clustering() calls compute_base_level/residualize_tau/run_kmeans_sweep,
@@ -18,7 +16,7 @@ source("../src/clustering_helpers.R")
 .pre_existing_globals <- ls(.GlobalEnv)
 
 # Load only function definitions from 06_clustering.R (combine_panels,
-# run_clustering -- its only two real, uncommented functions), stopping
+# run_clustering, build_k_sweep_row, build_map_panel), stopping
 # before the driver code that loads real ~250k-pixel data. Real-data loads
 # at the top (sn_boundary, index_config) are skipped -- these tests use
 # their own synthetic sn_boundary/cluster_cols/clust_labels instead.

@@ -53,6 +53,6 @@ install.packages(c(
   "car",           # VIF (variance inflation factor) for multicollinearity checks
   "torch",         # deep neural networks
   "caret",         # ML utilities & preprocessing
-  "multcompView",  # Tukey HSD letters -- loaded, but never actually called
+  "multcompView",  # Tukey HSD letters -- not used
   "ggsignif"       # significance brackets -- dead code in 06_clustering.R
 ))
