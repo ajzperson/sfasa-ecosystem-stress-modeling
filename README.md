@@ -34,4 +34,4 @@ These findings support CSD statistics derived from satellite time series as earl
   - `charts/` — chart outputs
   - `docs/` — documentation and slides
   - `tests/` — unit tests
-  - `deprecated/` — old scripts no longer used
+  - `unused/` — scripts not currently used (kept for possible later use)

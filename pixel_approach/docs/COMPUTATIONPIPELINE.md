@@ -104,7 +104,7 @@ Runs STL decomposition + climate correction + rolling CSD statistics per pixel.
 - `WIN = 54` months rolling window
 - `NA_THRESHOLD = 0.30` — pixels with ≥ 30% NA months are skipped
 - `EDGE_NA_LIMIT = 6` — pixels with a leading/trailing contiguous NA run longer than
-  6 months are skipped (data guardrail, see below)
+  6 months are skipped (data guardrail)
 - `N_WORKERS = 5` — parallel worker processes
 - `FUTURE_MAX_SIZE_MB = 2048` — raises `future`'s default 500 MiB safety cap so the
   parallel workers are allowed to receive the data they need.
@@ -143,7 +143,7 @@ Turns each pixel's CSD statistics into a stress tier (K-means), run independentl
      | NDVI | 0.30 | 0.15 |
      | NDWI | 0.31 | 0.19 |
 
-     Residualizing against `base_level` removes this confound (post-residualization correlation with `base_level` ~0, verified).
+     Residualizing against `base_level` removes this confound.
 5. Z-score both features (`resid_tau_r1`, `resid_tau_skew`) — `resid_tau_skew` is kept unflipped, since skewness's direction near a transition depends on which state the system is heading toward (not universal like r1's "higher = more stressed"), so K-means is left to separate pixels by that direction rather than having it collapsed away.
 6. K-means sweep K=2–8 (elbow + silhouette, for the chart), then fit K-means at K=3 (the chosen value).
 7. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) + mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed. Same unweighted-composite approach as the combined method below.
@@ -247,7 +247,7 @@ Same role as `09_fire_validation.R`, but for the combined clustering.
   - `dashboard_combined.pdf`, `dashboard_combined_ratio.pdf`
 
 ### Trace CSD statistics over time, by cluster
-- r1/skew trajectories: average `03`'s already-saved per-pixel rolling series within each cluster directly — not recomputed from an averaged residual, since that gives a different (wrong) answer for a nonlinear statistic. Level trajectory: reconstruct each pixel's climate-corrected residual from its saved STL/climate coefficients (`b0`/`b1`/`b2`/seasonal), then average — valid here since a mean is linear. Compares all three within each cluster (2005–2014) to see whether the trend predates the 2012 drought onset.
+- For each cluster, plot three statistics over 2005–2014: rolling r1, rolling skewness, and the rolling mean of the climate-corrected residual ("level"). r1 and skew are the cluster average of each pixel's rolling series saved by `03`; level is rebuilt from each pixel's saved STL/climate coefficients. Shows whether the trend started before the 2012 drought onset.
 - `pixel_approach/src/12_csd_rolling_timeline.R` →
   - `cluster_csd_rolling_timeline.pdf`
 
@@ -262,7 +262,7 @@ Same role as `09_fire_validation.R`, but for the combined clustering.
 Tests whether the combined 4-feature clustering (`06b`) is rediscovering the same pixels a much simpler check that relates NDVI's and NDWI's clustering directly (`13`) already finds, or flagging a genuinely different set — and where they differ, which one is more predictive of real damage.
 
 - Group A: pixels in the combined clustering's top stress cluster ("NDVI+NDWI_4"). Group B: pixels where NDVI-alone and NDWI-alone's independent clusterings both separately landed on "full CSD" ("NDVI_3 ∩ NDWI_3", the "Both" group from `13`).
-- Real-world 2015–2016 damage rates are cleanly ordered: "Neither" (19.6% beetle mortality, 2.5% fire) < "NDVI+NDWI_4" only or "NDVI_3 ∩ NDWI_3" only (~22–23% beetle, ~2.9% fire, performing about equally) < "Both" (25.9% beetle, 4.4% fire). Where the two independently-built groupings coincide is the strongest signal; where they diverge, neither is clearly better than the other.
+- Real-world 2015–2016 damage rates are cleanly ordered: "Neither" < "NDVI+NDWI_4" only or "NDVI_3 ∩ NDWI_3" only (performing about equally) < "Both". Where the two independently-built groupings coincide is the strongest signal; where they diverge, neither is clearly better than the other.
 - `pixel_approach/src/14_combined_vs_agreement.R` →
   - `combined_vs_agreement.pdf`
   - `combined_vs_agreement.png` (used for the slide embed; PDF renders "∩" as "." in its embedded font)
