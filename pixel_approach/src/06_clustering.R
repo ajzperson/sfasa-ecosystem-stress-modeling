@@ -67,9 +67,9 @@ fire_flags <- read_csv("pixel_approach/data/processed/pixel_fire.csv", show_col_
 pixel_meta <- read_csv("pixel_approach/data/processed/pixel_metadata.csv", show_col_types = FALSE) |>
   select(pixel_id)
 
-# Colors match heatmap convention: blue (rank 1, least stressed) -> red
-# (rank K, most stressed). Shared across both indices' charts since the
-# cluster labels (1..K, "no CSD".."full CSD") mean the same thing in both.
+# Colors: blue (rank 1, least stressed) -> red (rank K, most stressed).
+# Shared across both indices' charts since the cluster labels (1..K,
+# "Least-stressed".."Most-stressed") mean the same thing in both.
 style        <- build_cluster_style(K)
 cluster_cols <- style$cols
 clust_labels <- style$labels
@@ -89,7 +89,7 @@ run_clustering <- function(cfg, K, SEED) {
   # Exclude pixels burned (MTBS moderate+ severity) at any point during the
   # 2000-2014 baseline window -- a fire causes a sudden, discrete NDVI/NDWI
   # crash unrelated to gradual drought stress, which would contaminate the
-  # tau_r1/tau_var trend statistics computed over that same window.
+  # tau_r1/tau_skew trend statistics computed over that same window.
   n_before <- nrow(d)
   d <- d |>
     left_join(fire_flags, by = "pixel_id") |>
@@ -125,8 +125,8 @@ run_clustering <- function(cfg, K, SEED) {
   km <- sweep_res$km_final
   d$cluster_raw <- km$cluster
 
-  # Re-label clusters by composite stress rank so colors are semantically
-  # consistent with the heatmaps (red = more stressed, blue = less stressed).
+  # Re-label clusters by composite stress rank (red = more stressed,
+  # blue = less stressed).
   stress_rank <- d |>
     group_by(cluster_raw) |>
     summarise(composite = mean(resid_tau_r1) + mean(resid_tau_skew), .groups = "drop") |>
@@ -225,7 +225,7 @@ map_panels <- lapply(map_panels, function(pnl) pnl + labs(caption = NULL))
 p_map <- combine_panels(map_panels) +
   plot_annotation(
     title    = sprintf("K-means Clusters (k=%d) on density-residualized tau_r1 + tau_skew", K),
-    subtitle = "Color: blue = least stressed -> red = most stressed (consistent with heatmaps)",
+    subtitle = "Color: blue = least stressed -> red = most stressed",
     caption  = "White gaps: pixels burned (MTBS moderate+ severity) at any point\n2000-2014, excluded before clustering",
     theme    = theme(plot.title    = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
                       plot.subtitle = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"),

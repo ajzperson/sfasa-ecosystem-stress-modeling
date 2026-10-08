@@ -2,9 +2,7 @@ library(tidyverse)
 library(sf)
 
 # Extracts USFS ADS bark-beetle mortality (TPA -- trees per acre killed) for
-# every pixel in pixel_metadata.csv. ALL_YEARS is fixed at 2015-2016 since
-# the raw ADS data's LEGACY_TPA field is near-zero from 2017 and absent
-# from 2018 on.
+# every pixel in pixel_metadata.csv.
 #
 # Output: pixel_approach/data/processed/pixel_beetle.csv
 #   (pixel_id, tpa_2016, tpa_2015 -- column order follows data, not year)

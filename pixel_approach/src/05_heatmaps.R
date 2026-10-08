@@ -112,14 +112,11 @@ save_combined(
   out_file = "pixel_approach/charts/heatmap_tau_var.pdf"
 )
 
-# Simple two-color diverging scale, same structure as tau_r1/tau_var --
-# this is a forest-only study area (no desert/dryland pixels), so the
-# dense-forest mechanism (lower/more-negative tau_skew = worse) applies
-# uniformly; no need to hedge the positive direction separately.
+# Same blue (low) -> red (high) scale as tau_r1/tau_var.
 save_combined(
-  plot_heatmap(d_ndvi, "tau_skew", "NDVI", "#D73027", "#2166AC", limits = c(-1, 1)),
-  plot_heatmap(d_ndwi, "tau_skew", "NDWI", "#D73027", "#2166AC", limits = c(-1, 1)),
-  title    = "Kendall's tau - Skewness\n(negative = more stressed; red = worse)",
+  plot_heatmap(d_ndvi, "tau_skew", "NDVI", "#2166AC", "#D73027", limits = c(-1, 1)),
+  plot_heatmap(d_ndwi, "tau_skew", "NDWI", "#2166AC", "#D73027", limits = c(-1, 1)),
+  title    = "Kendall's tau - Skewness",
   out_file = "pixel_approach/charts/heatmap_tau_skew.pdf"
 )
 

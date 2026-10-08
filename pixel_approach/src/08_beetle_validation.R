@@ -7,10 +7,6 @@ source("pixel_approach/src/clustering_helpers.R")
 # (extracted in 02e_pixel_beetle.R, independent of clustering) -- same role
 # as 09_fire_validation.R.
 #
-# Validation window (VALIDATION_YEARS below, default 2015-2016) -- the raw
-# ADS data itself only has usable LEGACY_TPA for 2015-2016 (see 02e for why
-# ALL_YEARS there stays fixed at 2015:2016 regardless of this window).
-#
 # Output:
 #   pixel_approach/charts/beetle_tpa_by_cluster.pdf (NDVI + NDWI side by side)
 #   pixel_approach/charts/beetle_tpa_by_cluster_ratio.pdf (same, bars as ratio

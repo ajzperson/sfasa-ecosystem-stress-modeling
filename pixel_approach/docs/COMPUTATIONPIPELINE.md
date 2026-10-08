@@ -146,7 +146,7 @@ Turns each pixel's CSD statistics into a stress tier (K-means), run independentl
      Residualizing against `base_level` removes this confound.
 5. Z-score both features (`resid_tau_r1`, `resid_tau_skew`) — `resid_tau_skew` is kept unflipped, since skewness's direction near a transition depends on which state the system is heading toward (not universal like r1's "higher = more stressed"), so K-means is left to separate pixels by that direction rather than having it collapsed away.
 6. K-means sweep K=2–8 (elbow + silhouette, for the chart), then fit K-means at K=3 (the chosen value).
-7. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) + mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed. Same unweighted-composite approach as the combined method below.
+7. Relabel clusters 1..3 by stress rank: `composite = mean(resid_tau_r1) + mean(resid_tau_skew)` per raw cluster, ascending — 1 = least stressed, 3 = most stressed.
 
 **Parameters:**
 - `K = 3`
@@ -186,7 +186,7 @@ Exploratory alternative to the per-index clustering above: instead of clustering
 Checks whether the stress-tier clusters (from `06`) actually line up with real bark-beetle kill, using `02e`'s per-pixel mortality data as ground truth.
 
 **Mechanism, step by step** (index = NDVI or NDWI, run independently for each):
-1. A pixel counts as having beetle mortality if it had any bark-beetle kill in 2015 or 2016 (the years the ADS data reliably covers).
+1. A pixel counts as having beetle mortality if it had any bark-beetle kill in 2015 or 2016 (the 2015–2016 validation window).
 2. For each cluster, compute the % of its pixels with mortality — the actual validation question: do more-stressed clusters really show more real-world mortality?
 3. Plot that percentage by cluster, with the average kill severity (TPA) shown for context on each bar.
 
@@ -262,7 +262,7 @@ Same role as `09_fire_validation.R`, but for the combined clustering.
 Tests whether the combined 4-feature clustering (`06b`) is rediscovering the same pixels a much simpler check that relates NDVI's and NDWI's clustering directly (`13`) already finds, or flagging a genuinely different set — and where they differ, which one is more predictive of real damage.
 
 - Group A: pixels in the combined clustering's top stress cluster ("NDVI+NDWI_4"). Group B: pixels where NDVI-alone and NDWI-alone's independent clusterings both separately landed on "full CSD" ("NDVI_3 ∩ NDWI_3", the "Both" group from `13`).
-- Real-world 2015–2016 damage rates are cleanly ordered: "Neither" < "NDVI+NDWI_4" only or "NDVI_3 ∩ NDWI_3" only (performing about equally) < "Both". Where the two independently-built groupings coincide is the strongest signal; where they diverge, neither is clearly better than the other.
+- Real-world 2015–2016 damage rates are cleanly ordered: "Neither" < "NDVI+NDWI_4" only < "NDVI_3 ∩ NDWI_3" only < "Both". Where the two independently-built groupings coincide is the strongest signal.
 - `pixel_approach/src/14_combined_vs_agreement.R` →
   - `combined_vs_agreement.pdf`
   - `combined_vs_agreement.png` (used for the slide embed; PDF renders "∩" as "." in its embedded font)
@@ -287,7 +287,7 @@ Tests whether the combined 4-feature clustering (`06b`) is rediscovering the sam
 | `pixel_approach/src/01_extract_pixel_ndvi.R` (calls `extract_pixel_matrix.R`) | `data_common/raw/ndvi/MOD13A1.061_500m_aid0001.nc`<br>`docs_common/sierra_nevada_boundary.geojson` | `pixel_approach/data/processed/ndvi_matrix.rds`<br>`pixel_approach/data/processed/pixel_metadata.csv` |
 | `pixel_approach/src/01_extract_pixel_ndwi.R` (calls `extract_pixel_matrix.R`) — **long-running** | `data_common/raw/ndwi/MOD09A1.061_500m_aid0001.nc`<br>`docs_common/sierra_nevada_boundary.geojson`<br>`pixel_approach/data/processed/pixel_metadata.csv` | `pixel_approach/data/processed/ndwi_matrix.rds` |
 | `pixel_approach/src/02a_pixel_vpd.R` | `data_common/raw/vpd/TerraClimate_vpd_2000-2025.nc`<br>`pixel_approach/data/processed/pixel_metadata.csv` | `pixel_approach/data/processed/vpd_matrix.rds` |
-| `pixel_approach/src/02b_pixel_ppt.R` | `data_common/raw/prism/prismz/`<br>`pixel_approach/data/processed/pixel_metadata.csv` | `pixel_approach/data/processed/ppt_matrix.rds` |
+| `pixel_approach/src/02b_pixel_ppt.R` | `data_common/raw/prism/prismz.zip` (unzipped to `prismz/` on first run)<br>`pixel_approach/data/processed/pixel_metadata.csv` | `pixel_approach/data/processed/ppt_matrix.rds` |
 | `pixel_approach/src/02c_pixel_fire.R` | `data_common/raw/mtbs/bsp_ugjds3epryqgif0ej5sb.zip`<br>`pixel_approach/data/processed/pixel_metadata.csv`<br>`docs_common/sierra_nevada_boundary.geojson` | `pixel_approach/data/processed/pixel_fire.csv`<br>`pixel_approach/data/processed/mtbs_baseline_severity.tif`<br>`pixel_approach/data/processed/mtbs_severity_2015.tif`<br>`pixel_approach/data/processed/mtbs_severity_2016.tif`<br>`pixel_approach/data/processed/mtbs_severity_2017.tif`<br>`pixel_approach/data/processed/mtbs_severity_2018.tif`<br>`pixel_approach/data/processed/mtbs_severity_2019.tif` |
 | `pixel_approach/src/02e_pixel_beetle.R` | `data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip`<br>`pixel_approach/data/processed/pixel_metadata.csv`<br>`docs_common/sierra_nevada_boundary.geojson` | `pixel_approach/data/processed/pixel_beetle.csv` |
 | `pixel_approach/src/study_area_chart.R` | `pixel_approach/data/processed/pixel_metadata.csv`<br>`docs_common/sierra_nevada_boundary.geojson` | `pixel_approach/charts/study_area_pixels.pdf`<br>`pixel_approach/charts/study_area_pixels.png` |
