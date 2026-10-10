@@ -53,7 +53,7 @@ r_b05   <- mask(r_b05, good_qc, maskvalue = FALSE)
 cat("Computing NDWI = (b02 - b05) / (b02 + b05)...\n")
 r_ndwi <- (r_b02 - r_b05) / (r_b02 + r_b05)
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 extract_pixel_matrix(
   r                     = r_ndwi,

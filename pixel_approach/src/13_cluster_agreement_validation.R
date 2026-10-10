@@ -20,7 +20,7 @@ library(patchwork)
 
 VALIDATION_YEARS <- 2015:2016
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 ndvi <- read_csv("pixel_approach/data/processed/ndvi_pixel_clusters.csv", show_col_types = FALSE) |>
   select(pixel_id, lon, lat, cluster_ndvi = cluster)

@@ -9,7 +9,7 @@ library(tidyverse)
 # Output: data_common/raw/swe/TerraClimate_swe_2000-2025.nc
 
 cat("Downloading TerraClimate SWE for Sierra Nevada area...\n")
-sn_aoi <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_aoi <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 cat("Downloading SWE (2000-2025) — this may take a few minutes...\n")
 swe_raw <- getTerraClim(

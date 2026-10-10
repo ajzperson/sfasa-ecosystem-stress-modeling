@@ -27,7 +27,7 @@ source("pixel_approach/src/clustering_helpers.R")
 #     in parallel from panel_fire_combined_ratio.rds/
 #     panel_beetle_combined_ratio.rds, raw dashboard untouched
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 clusters_path <- "pixel_approach/data/processed/combined_pixel_clusters.csv"
 pixels <- read_csv(clusters_path, show_col_types = FALSE)

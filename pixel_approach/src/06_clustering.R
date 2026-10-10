@@ -52,7 +52,7 @@ index_config <- list(
   )
 )
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 # MTBS-based fire flags (02c_pixel_fire.R) -- shared across both indices,
 # since fire exposure doesn't depend on which vegetation index is used.

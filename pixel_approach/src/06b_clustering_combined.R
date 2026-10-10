@@ -24,7 +24,7 @@ if (!exists("NDWI_TAU_FILE"))  NDWI_TAU_FILE  <- "pixel_approach/data/processed/
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 fire_flags <- read_csv("pixel_approach/data/processed/pixel_fire.csv", show_col_types = FALSE) |>
   select(pixel_id, burned_baseline_00_14)

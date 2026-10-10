@@ -41,7 +41,7 @@ if (!dir.exists(MTBS_DIR) || length(list.files(MTBS_DIR, pattern = "\\.tif$")) =
 #    since each year's mosaic is cropped to that year's own fire extent and
 #    the extents don't match across years.
 # --------------------------------------------------------------------------
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 sample_r <- rast(file.path(MTBS_DIR, "mtbs_CA_2015.tif"))
 sn_albers <- st_transform(sn_boundary, crs(sample_r))

@@ -44,7 +44,7 @@ cat("Applying QC mask (VI_Quality bits 0-1 <= 10: excluding not-produced only)..
 good_qc <- r_qc %% 4 <= 2
 r       <- mask(r, good_qc, maskvalue = FALSE)
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 extract_pixel_matrix(
   r             = r,

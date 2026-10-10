@@ -44,7 +44,7 @@ cat(sprintf("  TPA range: %.1f to %.1f (NAs: %d / %d)\n",
             min(beetle$tpa, na.rm = TRUE), max(beetle$tpa, na.rm = TRUE),
             sum(is.na(beetle$tpa)), nrow(beetle)))
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE) |>
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE) |>
   st_transform(4326)
 
 beetle_sn <- st_filter(beetle, sn_boundary)

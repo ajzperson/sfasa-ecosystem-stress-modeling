@@ -27,7 +27,7 @@ d_ndwi <- read_csv("pixel_approach/data/processed/ndwi_pixel_tau.csv",
                     show_col_types = FALSE) |>
   filter(!is.na(tau_r1))
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 # Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
 # ignore theme's bold face, so degree labels are recreated manually.

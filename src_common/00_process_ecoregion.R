@@ -5,13 +5,13 @@ library(sf)
 # GeoJSON. Area is computed via EPSG:3310 (NAD83 / California Albers,
 # equal-area for California).
 #
-# Output: docs_common/sierra_nevada_boundary.geojson
+# Output: data_common/processed/sierra_nevada_boundary.geojson
 
 sf_use_s2(TRUE)
 
 zip_file  <- "data_common/raw/ecoregion/us_eco_l3.zip"
 out_dir   <- "data_common/raw/ecoregion/us_eco_l3"
-out_file  <- "docs_common/sierra_nevada_boundary.geojson"
+out_file  <- "data_common/processed/sierra_nevada_boundary.geojson"
 
 if (!dir.exists(out_dir)) {
   cat("Unzipping EPA Level III ecoregion shapefile...\n")

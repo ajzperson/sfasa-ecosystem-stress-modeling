@@ -12,7 +12,7 @@ library(cowplot)
 
 dir.create("pixel_approach/charts", showWarnings = FALSE, recursive = TRUE)
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 pixel_meta  <- read_csv("pixel_approach/data/processed/pixel_metadata.csv", show_col_types = FALSE)
 n_pixels    <- nrow(pixel_meta)
 area_km2    <- round(as.numeric(st_area(st_transform(sn_boundary, 3310))) / 1e6, 1)

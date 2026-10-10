@@ -25,7 +25,7 @@ source("pixel_approach/src/clustering_helpers.R")
 #     dashboards untouched
 #   pixel_approach/charts/dashboard_ndwi_ratio.pdf
 
-sn_boundary <- st_read("docs_common/sierra_nevada_boundary.geojson", quiet = TRUE)
+sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 style        <- build_cluster_style(3)
 cluster_cols <- style$cols
