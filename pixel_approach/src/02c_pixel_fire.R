@@ -2,18 +2,11 @@ library(tidyverse)
 library(terra)
 library(sf)
 
-# Extracts MTBS (Monitoring Trends in Burn Severity) burn exposure for every
-# pixel in pixel_metadata.csv. A pixel counts as "burned" only at moderate (3)
-# or high (4) severity. Baseline years (2000-2014) collapse to one OR'd
-# flag; 2015-2019 stay as separate per-year columns so downstream scripts
-# can pick any validation window without re-running this extraction.
+# Flags each pixel burned (MTBS moderate/high severity) for 2000-2014
+# combined and for each year 2015-2019.
 #
 # Output: pixel_approach/data/processed/pixel_fire.csv
-#   (pixel_id, burned_baseline_00_14, burned_2015, burned_2016, burned_2017,
-#    burned_2018, burned_2019)
-#   Also caches per-year burned-severity rasters (mtbs_baseline_severity.tif,
-#   mtbs_severity_2015.tif..mtbs_severity_2019.tif) in the same directory,
-#   reused on subsequent runs.
+#         pixel_approach/data/processed/mtbs_*severity*.tif (caches)
 
 sf_use_s2(FALSE)
 
@@ -22,8 +15,7 @@ MTBS_DIR <- "data_common/raw/mtbs/tif"
 BURNED_SEVERITY <- c(3, 4)  # moderate, high
 CACHE_DIR <- "pixel_approach/data/processed"
 
-# MTBS's direct-download bundles all years into one outer zip containing
-# one inner zip per year (mtbs_CA_<year>.zip) -- a two-level unzip.
+# Outer zip holds one zip per year
 if (!dir.exists(MTBS_DIR) || length(list.files(MTBS_DIR, pattern = "\\.tif$")) == 0) {
   cat("Unzipping MTBS data (two levels: outer bundle -> per-year zips)...\n")
   tmp_dir <- tempfile("mtbs_extract_")
@@ -36,23 +28,14 @@ if (!dir.exists(MTBS_DIR) || length(list.files(MTBS_DIR, pattern = "\\.tif$")) =
   cat(sprintf("✓ Extracted %d years of MTBS data to %s\n", length(inner_zips), MTBS_DIR))
 }
 
-# --------------------------------------------------------------------------
-# 1. Build a common Sierra-Nevada-sized template grid (MTBS's own CRS/30m),
-#    since each year's mosaic is cropped to that year's own fire extent and
-#    the extents don't match across years.
-# --------------------------------------------------------------------------
+# Common 30m grid, since each year's mosaic has a different extent
 sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
 sample_r <- rast(file.path(MTBS_DIR, "mtbs_CA_2015.tif"))
 sn_albers <- st_transform(sn_boundary, crs(sample_r))
 template <- rast(vect(sn_albers), resolution = 30, crs = crs(sample_r))
 
-# --------------------------------------------------------------------------
-# 2. Load each year, reclassify to binary (moderate/high severity = 1, else
-#    0), and align to the common template. Baseline years (2000-2014) are
-#    OR'd together into one raster; validation years (2015-2019) are kept
-#    as separate per-year rasters (see header for why).
-# --------------------------------------------------------------------------
+# Burned (1/0) rasters: 2000-2014 OR'd into one, 2015-2019 one per year
 VALIDATION_YEARS <- 2015:2019
 
 build_year_raster <- function(yr) {
@@ -104,15 +87,8 @@ for (yr in as.character(VALIDATION_YEARS)) {
   }
 }
 
-# --------------------------------------------------------------------------
-# 3. Extract burned status per pixel: a 250m buffer around each centroid
-#    (spans ~17x17 of these 30m cells), max()'d over the buffer -- any
-#    moderate+ cell flags the pixel burned.
-#
-#    extract() over all ~252k points in one call returns NA for most rows
-#    partway through, with no error -- so it's called in 5000-point batches
-#    instead, which don't hit that.
-# --------------------------------------------------------------------------
+# A pixel is burned if any 30m cell within 250m of its centroid is burned.
+# Batched because one extract() over all points silently returns NAs.
 pixel_meta <- read_csv("pixel_approach/data/processed/pixel_metadata.csv",
                         show_col_types = FALSE)
 cat(sprintf("✓ %d pixels in shared grid\n", nrow(pixel_meta)))
@@ -148,9 +124,7 @@ for (yr in names(year_rasters)) {
   year_cols <- c(year_cols, col)
 }
 
-# Pixels at the template edge get NA (buffer never overlaps a raster cell),
-# not FALSE -- treated as not burned rather than letting NA propagate
-# through downstream mean()/sum() calls.
+# Edge pixels with no raster overlap (NA) count as not burned
 all_cols <- c("burned_baseline_00_14", year_cols)
 n_edge_na <- sum(rowSums(is.na(pixel_meta[all_cols])) > 0)
 cat(sprintf("  %d pixels at the template edge had no raster overlap -- treated as not burned\n", n_edge_na))

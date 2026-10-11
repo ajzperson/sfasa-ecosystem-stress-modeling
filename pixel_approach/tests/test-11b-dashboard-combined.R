@@ -5,16 +5,12 @@ library(patchwork)
 
 source("../src/clustering_helpers.R")
 
-# Snapshot of .GlobalEnv before this file writes anything into it (see
-# cleanup at the bottom -- same reasoning as test-06-clustering.R).
+# Tests for 11b_dashboard_combined.R (map panel only).
+
+# Globals present before this file; anything newer is removed at the end
 .pre_existing_globals <- ls(.GlobalEnv)
 
-# Loads lon_labels/lat_labels/build_map_panel (plus their K/cluster_cols/
-# clust_labels/boundary_xy dependencies) from 11b_dashboard_combined.R,
-# stopping before build_combined_dashboard() is called for real (which
-# reads fire/beetle panels from hardcoded repo-root-relative paths, not
-# parameterized -- same reason 11_dashboard.R's build_dashboard() isn't
-# covered either; see test-11-dashboard.R).
+# build_combined_dashboard() reads fixed panel paths, so it isn't tested
 exprs    <- parse("../src/11b_dashboard_combined.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
@@ -24,10 +20,7 @@ skip_lines <- grepl(
 stop_at <- which(grepl("^build_combined_dashboard\\(", src_text))[1]
 stopifnot(!is.na(stop_at))
 
-# build_map_panel()'s closure is forced into .GlobalEnv below, so K/
-# boundary_xy must be assigned there explicitly -- plain `<-` would land
-# in this file's own environment instead (see test-11-dashboard.R for the
-# same issue with boundary_xy).
+# Assigned into .GlobalEnv, where build_map_panel() looks them up
 assign("K", 4, envir = .GlobalEnv)
 assign("boundary_xy", data.frame(X = c(-121, -121, -118, -118, -121),
                                   Y = c(35, 40, 40, 35, 35)),

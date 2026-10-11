@@ -3,22 +3,11 @@ library(patchwork)
 
 source("pixel_approach/src/clustering_helpers.R")
 
-# Cross-validates K-means clusters against USFS ADS beetle-kill mortality
-# (extracted in 02e_pixel_beetle.R, independent of clustering) -- same role
-# as 09_fire_validation.R.
+# Share of pixels with 2015-2016 beetle mortality in each NDVI/NDWI cluster.
 #
-# Output:
-#   pixel_approach/charts/beetle_tpa_by_cluster.pdf (NDVI + NDWI side by side)
-#   pixel_approach/charts/beetle_tpa_by_cluster_ratio.pdf (same, bars as ratio
-#     vs. Cluster 1 instead of raw %) -- generated in parallel, raw
-#     chart/panels untouched
-#   pixel_approach/data/processed/pixel_beetle_tpa_ndvi.csv
-#   pixel_approach/data/processed/pixel_beetle_tpa_ndwi.csv
-#   pixel_approach/data/processed/panel_beetle_ndvi.rds (per-index panel,
-#     reused by 11_dashboard.R)
-#   pixel_approach/data/processed/panel_beetle_ndvi_ratio.rds
-#   pixel_approach/data/processed/panel_beetle_ndwi.rds
-#   pixel_approach/data/processed/panel_beetle_ndwi_ratio.rds
+# Output: pixel_approach/charts/beetle_tpa_by_cluster{,_ratio}.pdf
+#         pixel_approach/data/processed/pixel_beetle_tpa_{ndvi,ndwi}.csv
+#         pixel_approach/data/processed/panel_beetle_{ndvi,ndwi}{,_ratio}.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
@@ -38,8 +27,7 @@ index_config <- list(
 
 beetle_flags <- read_csv("pixel_approach/data/processed/pixel_beetle.csv", show_col_types = FALSE)
 
-# OR together (via pmax on continuous TPA) whichever per-year tpa_<year>
-# columns fall in VALIDATION_YEARS into one combined validation-window value.
+# Max TPA across the validation years
 win_cols <- sprintf("tpa_%d", VALIDATION_YEARS)
 stopifnot(all(win_cols %in% names(beetle_flags)))
 beetle_flags$tpa <- do.call(pmax, c(unname(beetle_flags[win_cols]), na.rm = TRUE))
@@ -71,17 +59,11 @@ run_beetle_validation <- function(cfg, beetle_flags) {
   cat(sprintf("\n=== %s: Zonal TPA by Cluster ===\n", cfg$label))
   print(zonal)
 
-  # Relative risk and ratio_to_c1 are computed from the unrounded rate
-  # (pct_with_mortality_exact), not the 1-decimal display value -- dividing
-  # already-rounded percentages compounds their rounding error into the
-  # ratio (e.g. a 2.9%/1.8% pair that's really 2.85/1.85 would read 1.61x
-  # instead of the true 1.54x).
+  # Ratios use unrounded rates
   rr_c3_vs_c1 <- zonal$pct_with_mortality_exact[zonal$cluster == 3] /
     zonal$pct_with_mortality_exact[zonal$cluster == 1]
   cat(sprintf("  Relative risk (Cluster 3 vs 1): %.2fx\n", rr_c3_vs_c1))
 
-  # Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
-  # Cluster 1 is 1.00x by construction.
   zonal <- zonal |>
     mutate(ratio_to_c1 = pct_with_mortality_exact / pct_with_mortality_exact[cluster == 1])
 
@@ -159,8 +141,7 @@ p_combined_ratio <- (results$ndvi$plot_ratio + results$ndwi$plot_ratio) +
 ggsave(OUT_CHART_RATIO, plot = p_combined_ratio, width = 12, height = 5, dpi = 150)
 cat(sprintf("✓ Saved: %s\n", OUT_CHART_RATIO))
 
-# Individual per-index panels, saved separately so 11_dashboard.R can
-# assemble a one-page-per-index summary without duplicating this plotting code.
+# Per-index panels for 11_dashboard.R
 for (idx in names(index_config)) {
   panel_path <- sprintf("pixel_approach/data/processed/panel_beetle_%s.rds", idx)
   saveRDS(results[[idx]]$plot, panel_path)

@@ -1,13 +1,7 @@
 library(testthat)
 library(tidyverse)
 
-# Loads only rate()/circle_pts() from 14b_agreement_venn.R -- both pure
-# functions with no free-variable dependencies. Real ~250k-pixel data load
-# (d <- read_csv(...)) and everything downstream of it (group filters,
-# chart) are skipped; the group-filter logic itself (ndvi_cluster == 3 &
-# ndwi_cluster != 3, etc.) is the same case-when-style classification
-# already covered by test-13-cluster-agreement-validation.R, so isn't
-# duplicated here.
+# Tests for rate() and circle_pts() in 14b_agreement_venn.R.
 exprs    <- parse("../src/14b_agreement_venn.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
@@ -42,9 +36,7 @@ test_that("rate ignores NA values via na.rm", {
 })
 
 test_that("circle_pts generates n points on a circle of radius r centered at (cx, cy)", {
-  # seq(0, 2*pi, length.out=n) spans n-1 steps (both endpoints included,
-  # and 0/2*pi coincide) -- with n=5 that's pi/2 per step, so theta hits
-  # exactly pi (the far side of the circle) at index 3.
+  # With n = 5, point 3 is at theta = pi
   pts <- circle_pts(cx = 2, cy = -1, r = 3, n = 5)
   expect_equal(nrow(pts), 5)
   expect_equal(pts$x[1], 2 + 3)                          # theta = 0

@@ -1,9 +1,7 @@
 library(tidyverse)
 library(terra)
 
-# Extracts per-pixel VPD (Feb 2000 - Dec 2016, monthly) at each NDVI pixel
-# centroid, bilinear-interpolated from TerraClimate's ~4km grid down to the
-# 500m NDVI grid. Row order matches pixel_metadata.csv (pixel_id).
+# Interpolates monthly TerraClimate VPD (Feb 2000-Dec 2016) at each pixel centroid.
 #
 # Output: pixel_approach/data/processed/vpd_matrix.rds
 
@@ -23,8 +21,7 @@ crs(vpd_rast) <- "EPSG:4326"
 vpd_ym   <- format(time(vpd_rast), "%Y%m")
 keep_v   <- which(vpd_ym %in% target_ym)
 vpd_rast <- vpd_rast[[keep_v]]
-# Read off the subsetted raster, not re-derived from target_dates, so column
-# labels always match the layers actually extracted below.
+# Dates come from the raster itself so labels always match the layers
 vpd_dates <- time(vpd_rast)
 cat(sprintf("✓ VPD layers: %d (%s to %s)\n", nlyr(vpd_rast),
             format(vpd_dates[1]),

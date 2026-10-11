@@ -2,16 +2,7 @@ library(tidyverse)
 library(sf)
 library(patchwork)
 
-# Spatial heatmaps of per-pixel CSD metrics, NDVI vs NDWI side by side in
-# each PDF: tau_r1 (lag-1 autocorrelation trend), tau_var (variance trend),
-# tau_skew (skewness trend). All three share a fixed [-1,1] color scale,
-# since Kendall's tau means the same thing regardless of which series it's
-# computed from.
-#
-# A 4th heatmap (Actual_Drop) is kept commented out below -- MTBS fire +
-# USFS ADS beetle mortality validation (see
-# 13_cluster_agreement_validation.R) is the current ground truth for
-# cluster severity instead.
+# Maps of per-pixel tau_r1, tau_var and tau_skew, NDVI and NDWI side by side.
 #
 # Output: pixel_approach/charts/heatmap_tau_r1.pdf
 #         pixel_approach/charts/heatmap_tau_var.pdf
@@ -29,8 +20,7 @@ d_ndwi <- read_csv("pixel_approach/data/processed/ndwi_pixel_tau.csv",
 
 sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
-# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
-# ignore theme's bold face, so degree labels are recreated manually.
+# coord_fixed (not coord_sf) so the degree labels can be bold
 boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
 lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
 lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))
@@ -56,8 +46,6 @@ plot_heatmap <- function(data, col, panel_title, low_col, high_col,
         guide    = guide_colorbar(reverse = legend_reverse)
       )
     } else {
-      # One-sided (e.g. |tau_skew|, 0..1): plain low->high gradient, no
-      # midpoint -- there's no "opposite direction" to diverge toward.
       scale_color_gradient(
         low    = low_col,
         high   = high_col,
@@ -112,7 +100,6 @@ save_combined(
   out_file = "pixel_approach/charts/heatmap_tau_var.pdf"
 )
 
-# Same blue (low) -> red (high) scale as tau_r1/tau_var.
 save_combined(
   plot_heatmap(d_ndvi, "tau_skew", "NDVI", "#2166AC", "#D73027", limits = c(-1, 1)),
   plot_heatmap(d_ndwi, "tau_skew", "NDWI", "#2166AC", "#D73027", limits = c(-1, 1)),
@@ -120,13 +107,3 @@ save_combined(
   out_file = "pixel_approach/charts/heatmap_tau_skew.pdf"
 )
 
-# Deprioritized -- see header note.
-# save_combined(
-#   plot_heatmap(d_ndvi, "Actual_Drop_15_16", "NDVI", "#2166AC", "#D73027",
-#                legend_name = "Actual Drop"),
-#   plot_heatmap(d_ndwi, "Actual_NDWI_Drop_15_16", "NDWI", "#2166AC", "#D73027",
-#                legend_name = "Actual Drop"),
-#   title          = "Actual Drop 2015-2016\n(baseline 2000-2011 mean - min 2015-2016)",
-#   out_file       = "pixel_approach/charts/heatmap_actual_drop.pdf",
-#   collect_guides = FALSE
-# )

@@ -1,9 +1,6 @@
 library(sf)
 
-# Filters the EPA Level III ecoregion shapefile to US_L3CODE == "5" (Sierra
-# Nevada), reprojects to EPSG:4326 (GeoJSON requires WGS84), and saves as
-# GeoJSON. Area is computed via EPSG:3310 (NAD83 / California Albers,
-# equal-area for California).
+# Extracts the Sierra Nevada ecoregion (EPA Level III code 5) as a WGS84 GeoJSON.
 #
 # Output: data_common/processed/sierra_nevada_boundary.geojson
 

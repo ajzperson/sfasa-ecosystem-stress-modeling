@@ -3,14 +3,7 @@ library(tidyverse)
 
 source("../src/clustering_helpers.R")
 
-# 09b_fire_validation_combined.R has no functions of its own -- flat
-# top-level pipeline, structurally identical to
-# 08b_beetle_validation_combined.R (join pixel clusters + fire exposure ->
-# zonal stats -> relative risk -> ratio_to_c1). Real ~250k-pixel loads
-# (fire_flags, pixels) are skipped and replaced with a small synthetic
-# `pixels` fixture below (already shaped like the post-join result);
-# chart/CSV-writing lines are skipped too. `eval()` uses the default envir
-# since nothing here is wrapped in a function.
+# Tests for 09b_fire_validation_combined.R, run on a synthetic pixels table.
 exprs    <- parse("../src/09b_fire_validation_combined.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
@@ -20,13 +13,7 @@ skip_lines <- grepl(
 stop_at <- which(grepl("^write_csv\\(", src_text))[1]
 stopifnot(!is.na(stop_at))
 
-# 4 clusters x 10 pixels, burn rate stepping 10/30/50/70% -- hand-
-# computable relative risk (Cluster 4 vs 1): 70% / 10% = 7.00x, and
-# ratio_to_c1 = c(1, 3, 5, 7). Numeric (not factor) cluster column --
-# matches what read_csv() infers for a "1"/"2"/"3"/"4" CSV column (the
-# real load this replaces); K <- max(zonal$cluster) errors on an
-# unordered factor but works fine on numeric (see
-# test-08b-beetle-validation-combined.R for the same issue).
+# Burned 10/30/50/70% -> RR (4 vs 1) = 7.00; numeric cluster as read_csv() returns it
 n_burned <- c(1, 3, 5, 7)
 burned <- unlist(lapply(n_burned, function(n) c(rep(TRUE, n), rep(FALSE, 10 - n))))
 pixels <- tibble(

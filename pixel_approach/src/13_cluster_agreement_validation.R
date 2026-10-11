@@ -2,21 +2,11 @@ library(tidyverse)
 library(sf)
 library(patchwork)
 
-# Checks whether NDVI/NDWI cluster-3 ("full CSD") AGREEMENT itself carries
-# information, beyond either index alone. The two indices' cluster-3
-# populations only overlap ~35% (Jaccard 0.22) -- this script splits all
-# pixels flagged cluster 3 by at least one index into three groups (NDVI-3
-# only, NDWI-3 only, both) and checks real-world 2015-2016 outcome rates
-# (fire, beetle mortality) in each group. Pixels flagged by neither index
-# are dropped entirely -- not the question this script asks. Also maps the
-# three groups spatially, to check whether disagreement is scattered
-# (index-specific noise) or geographically clustered (a real spatial
-# driver, e.g. elevation/forest-type differences in which index is more
-# sensitive).
+# 2015-2016 damage rates and maps for pixels flagged most-stressed by NDVI
+# only, NDWI only, or both.
 #
-# Output:
-#   pixel_approach/charts/cluster_agreement_validation.pdf
-#   pixel_approach/charts/cluster_agreement_map.pdf
+# Output: pixel_approach/charts/cluster_agreement_validation.pdf
+#         pixel_approach/charts/cluster_agreement_map.pdf
 
 VALIDATION_YEARS <- 2015:2016
 
@@ -32,12 +22,7 @@ year_cols <- sprintf("burned_%d", VALIDATION_YEARS)
 fire$burned_validation <- rowSums(fire[year_cols]) > 0
 fire <- fire |> select(pixel_id, burned_validation)
 
-# Beetle validation flags were built per-index (each excludes that index's
-# own burned-baseline pixels), but the flags themselves are a property of
-# the pixel/outcome, not the index -- NDVI's and NDWI's copies agree on
-# every shared pixel_id. Using NDVI's copy here is arbitrary but harmless;
-# the alternative (avg of both) would be the same wherever it matters (any
-# pixel in this analysis is in the shared-pixel population).
+# NDVI's copy of the beetle flags; NDWI's is identical on shared pixels
 beetle <- read_csv("pixel_approach/data/processed/pixel_beetle_tpa_ndvi.csv", show_col_types = FALSE) |>
   select(pixel_id, any_mortality)
 
@@ -114,20 +99,6 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
 out_file <- "pixel_approach/charts/cluster_agreement_validation.pdf"
 ggsave(out_file, plot = p, width = 8, height = 6, dpi = 150)
 cat(sprintf("\n✓ Saved: %s\n", out_file))
-# ----------------------------------------------------------------------------
-# Spatial map: where do the three agreement groups fall? Points (even one
-# layer, randomly ordered) still visually blend/overlap at this density --
-# each pixel is actually a real, non-overlapping 500m grid cell, so this
-# plots exact-size tiles instead. Lat spacing is uniform (0.004167deg);
-# lon spacing is uniform WITHIN a row but widens toward the equator (this
-# is a true equal-area grid reprojected to lon/lat), so tile width is
-# computed per pixel from its own latitude, not a single constant.
-#
-# Split into one panel per group (each panel = only that group's tiles, one
-# solid color, nothing else drawn) -- a single combined map still requires
-# the reader to visually pick 3 colors apart across a huge, busy region;
-# separating them removes that burden entirely.
-# ----------------------------------------------------------------------------
 group_cols <- c(
   "NDWI-3 only" = "#377EB8",
   "NDVI-3 only" = "#FF7F00",
@@ -135,12 +106,7 @@ group_cols <- c(
 )
 
 LAT_STEP <- 0.004167
-# Oversized ~3x true pixel size for visibility -- individual 500m tiles
-# render smaller than one screen/print pixel across this large a region,
-# which anti-aliases them toward white (the "too light" look). This is only
-# safe because each panel below shows exactly one group's tiles and nothing
-# else, so oversizing can't reintroduce color-mixing ambiguity between
-# groups -- there's only ever one color drawn in a given panel.
+# Tiles drawn 3x size so they stay visible at full-map scale
 TILE_SCALE <- 3
 map_df <- joined |>
   mutate(
@@ -150,8 +116,7 @@ map_df <- joined |>
 
 group_n <- setNames(summary_tbl$n, as.character(summary_tbl$group))
 
-# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
-# ignore theme's bold face, so degree labels are recreated manually.
+# coord_fixed (not coord_sf) so the degree labels can be bold
 boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
 map_lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
 map_lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))

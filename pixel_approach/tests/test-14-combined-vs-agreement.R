@@ -3,15 +3,7 @@ library(tidyverse)
 library(patchwork)
 library(ggtext)
 
-# 14_combined_vs_agreement.R has no functions of its own besides
-# build_pie()/build_note()/wrap_def() (chart-only; only wrap_def -- a
-# trivial string formatter -- is worth testing directly). The bulk of the
-# file is flat top-level code (join 3 clusterings -> classify 4-way
-# overlap group -> Jaccard index -> join real-world outcomes -> zonal
-# rates -> relative risk). Real ~250k-pixel loads (combined, ndvi, ndwi,
-# beetle, fire) are skipped and replaced with small synthetic fixtures;
-# CSV/chart-writing lines are skipped too. `eval()` uses the default envir
-# since nothing kept here is wrapped in a function.
+# Tests for 14_combined_vs_agreement.R, run on synthetic inputs (charts skipped).
 exprs    <- parse("../src/14_combined_vs_agreement.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
@@ -24,16 +16,7 @@ skip_lines <- grepl(
   src_text
 )
 
-# 4 overlap groups x 10 pixels (K_combined = 4: "top" cluster is 4):
-#   Both (1-10):                  combined=4, ndvi=3, ndwi=3
-#   "NDVI+NDWI_4" only (11-20):   combined=4, ndvi=1, ndwi=1
-#   "NDVI_3 ∩ NDWI_3" only (21-30): combined=2, ndvi=3, ndwi=3
-#   Neither (31-40):              combined=1, ndvi=1, ndwi=1
-# Hand-computable: n_a (in_combined_top) = 20, n_b (in_agreement_both) =
-# 20, n_both = 10, n_union = 30, Jaccard = 10/30 = 0.333.
-# Real-world rates: Both fire 7/10=70%/beetle 5/10=50%; Neither fire
-# 1/10=10%/beetle 1/10=10% -> relative risk (Both vs Neither): Fire
-# 70/10=7.00x, Beetle 50/10=5.00x.
+# Pixels 1-10 Both, 11-20 NDVI+NDWI_4 only, 21-30 NDVI_3 ∩ NDWI_3 only, 31-40 Neither
 combined <- tibble(pixel_id = 1:40,
                     combined_cluster = c(rep(4, 20), rep(2, 10), rep(1, 10)))
 ndvi <- tibble(pixel_id = 1:40,

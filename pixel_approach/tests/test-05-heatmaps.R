@@ -3,11 +3,7 @@ library(tidyverse)
 library(sf)
 library(patchwork)
 
-# Load only plot_heatmap()/save_combined() and sn_boundary from
-# 05_heatmaps.R, skipping the real d_ndvi/d_ndwi CSV loads (large, and
-# unnecessary -- these tests use small synthetic data instead) and
-# stopping before the three real save_combined(...) calls at the bottom
-# (a fourth, for Actual_Drop, is commented out/deprioritized in the source).
+# Tests for 05_heatmaps.R; loads its functions without the data loads or chart saves.
 exprs    <- parse("../src/05_heatmaps.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_data_loads <- grepl("ndvi_pixel_tau\\.csv|ndwi_pixel_tau\\.csv", src_text)
@@ -77,8 +73,6 @@ test_that("plot_heatmap correctly maps color to the specified column, not anothe
 
   built_r1  <- ggplot_build(p_r1)$data[[1]]$colour
   built_var <- ggplot_build(p_var)$data[[1]]$colour
-  # Different source columns (tau_r1 vs tau_var have different value
-  # ranges/ordering) must produce different rendered colors.
   expect_false(identical(built_r1, built_var))
 })
 

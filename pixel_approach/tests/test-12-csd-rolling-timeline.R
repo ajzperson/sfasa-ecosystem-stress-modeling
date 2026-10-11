@@ -3,16 +3,7 @@ library(tidyverse)
 library(patchwork)
 library(zoo)
 
-# Loads cluster_cols/clust_labels/WIN/build_level_trajectory/build_panel
-# from 12_csd_rolling_timeline.R, stopping before the driver code that
-# loads real ~250k-pixel data (index_config, results <- lapply(...)).
-# build_cluster_trajectories() itself isn't covered -- it reads
-# cfg$clusters_path/r1_path/skew_path (parameterizable) but also calls
-# build_level_trajectory(), which reads vpd_matrix.rds/ppt_matrix.rds from
-# hardcoded repo-root-relative paths, not exposed via cfg; those two are
-# faked below as real files at that literal (harmless, nested, cleaned-up)
-# path instead, specifically so build_level_trajectory() -- the most
-# complex, matrix-arithmetic-heavy function in this file -- gets covered.
+# Tests for build_level_trajectory() and build_panel() in 12_csd_rolling_timeline.R.
 exprs    <- parse("../src/12_csd_rolling_timeline.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl("^index_config <-", src_text)
@@ -37,13 +28,7 @@ test_that("build_panel filters to the requested statistic and colors by cluster"
 })
 
 test_that("build_level_trajectory reconstructs clim_resid and rolls it correctly", {
-  # 3 pixels (one per cluster), 72 months (2009-01 to 2014-12) -- exactly
-  # 54 growing-season (Mar-Nov) months, i.e. exactly WIN, so there's
-  # exactly one rolling window per cluster with a hand-computable value.
-  # seas_* = 0 and VPD/PPT = 0 make predicted = b0 and y_deseas = mat_sub
-  # unchanged, so clim_resid = mat_sub - b0 = mat_sub (b0 = 0) -- a
-  # constant series per pixel, so its rolling mean is exactly that
-  # constant: cluster k's level = pixel k's constant value (1, 2, 3).
+  # One constant pixel per cluster over exactly one 54-month window, so level = 1, 2, 3
   col_dates <- format(seq(as.Date("2009-01-01"), as.Date("2014-12-01"), by = "month"))
   n_months  <- length(col_dates)
   stopifnot(n_months == 72)
@@ -55,9 +40,7 @@ test_that("build_level_trajectory reconstructs clim_resid and rolls it correctly
 
   zero_mat <- matrix(0, nrow = 3, ncol = n_months, dimnames = list(NULL, col_dates))
 
-  # vpd_matrix.rds/ppt_matrix.rds are read from this literal hardcoded
-  # path inside build_level_trajectory -- created here as real files
-  # (nested under this test's own cwd, harmless) and removed afterward.
+  # Temporary climate matrices at the fixed path the function reads
   fixture_dir <- "pixel_approach/data/processed"
   dir_existed <- dir.exists(fixture_dir)
   dir.create(fixture_dir, recursive = TRUE, showWarnings = FALSE)

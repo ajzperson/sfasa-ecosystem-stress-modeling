@@ -4,21 +4,15 @@ library(dplyr)
 library(readr)
 library(lubridate)
 
-# Shared pixel-extraction pipeline used by 01_extract_pixel_ndvi.R and
-# 01_extract_pixel_ndwi.R. Takes an already-computed index raster (one
-# layer per date, e.g. NDVI values or NDWI = (b02-b05)/(b02+b05)) and
-# produces the pixel_metadata.csv / <index>_matrix.rds pair used
-# downstream by the rest of the pixel_approach pipeline.
+# Shared by 01_extract_pixel_ndvi.R/ndwi.R: masks an index raster to the
+# boundary, averages it to monthly, and saves the pixel x month matrix.
 #
-# r            - SpatRaster, one layer per date, index already computed
-# dates        - Date vector, one per layer of r, same length/order as nlyr(r)
-# sn_boundary  - sf polygon to crop/mask to
-# metadata_path - where to write pixel_metadata.csv; NULL to skip (use when
-#                 another product on the same grid already wrote it)
-# verify_metadata_path - if set, check this run's pixel count/lon/lat match
-#                 the existing file exactly (catches grid drift instead of
-#                 silently misaligning matrices that get joined by pixel_id)
-# sample_only  - if TRUE, print a preview of the first n_sample pixels and stop
+# r                    - SpatRaster, one layer per date
+# dates                - Date per layer of r
+# sn_boundary          - sf polygon to crop/mask to
+# metadata_path        - where to write pixel_metadata.csv (NULL to skip)
+# verify_metadata_path - existing pixel_metadata.csv this grid must match
+# sample_only          - preview the first n_sample pixels and stop
 extract_pixel_matrix <- function(r, dates, sn_boundary,
                                   matrix_path, metadata_path = NULL,
                                   verify_metadata_path = NULL,
@@ -37,19 +31,13 @@ extract_pixel_matrix <- function(r, dates, sn_boundary,
   r_monthly    <- tapp(r, index = month_labels, fun = mean, na.rm = TRUE)
   cat(sprintf("✓ %d monthly layers produced\n", nlyr(r_monthly)))
 
-  # Rename layers to clean date strings (tapp names them by group label).
-  # Assumes tapp's groups line up 1:1 and in order with target_months —
-  # true for the current MODIS data (no missing months), but not
-  # guaranteed by tapp() itself, so check the layer count rather than silently
-  # mislabeling dates if that ever changes.
+  # Name layers by month; fails if any month is missing
   target_months <- seq(floor_date(min(dates), "month"),
                         floor_date(max(dates), "month"), by = "month")
   stopifnot(nlyr(r_monthly) == length(target_months))
   names(r_monthly) <- as.character(target_months)
 
-  # Valid cells = exactly the cells mask() kept non-NA. Apply mask() to a
-  # clean constant raster (no cloud NAs) using the same boundary and same
-  # spatial rule as the data — gives the true polygon pixel count.
+  # Pixels inside the boundary, counted on a constant raster so cloud NAs don't drop any
   sn_mask     <- mask(init(r_monthly[[1]], fun = 1), sn_vect)
   valid_cells <- which(!is.na(values(sn_mask)[, 1]))
   n_pixels    <- length(valid_cells)

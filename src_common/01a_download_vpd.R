@@ -24,7 +24,6 @@ cat(sprintf("✓ Downloaded: %d monthly layers\n", nlyr(r)))
 cat(sprintf("  Date range: %s to %s\n",
             min(as.Date(terra::time(r))), max(as.Date(terra::time(r)))))
 
-# Save to disk
 out_file <- "data_common/raw/vpd/TerraClimate_vpd_2000-2025.nc"
 writeCDF(r, out_file, varname = "vpd", unit = "kPa", overwrite = TRUE)
 cat(sprintf("✓ Saved: %s\n", out_file))

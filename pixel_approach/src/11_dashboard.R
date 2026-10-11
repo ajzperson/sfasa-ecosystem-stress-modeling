@@ -4,26 +4,9 @@ library(patchwork)
 
 source("pixel_approach/src/clustering_helpers.R")
 
-# One-page-per-index summary: cluster map beside the two real-world
-# validator bars (fire, beetle), stacked. Assembled from files saved by
-# 06_clustering.R/09_fire_validation.R/08_beetle_validation.R -- run those
-# three first (in any order; this script only reads their saved outputs, it
-# doesn't recompute anything itself).
+# One page per index: cluster map beside the fire and beetle bar charts.
 #
-# The cluster map panel is rebuilt here directly from ndvi_pixel_clusters.csv/
-# ndwi_pixel_clusters.csv rather than loaded from a saved .rds -- a ggplot
-# object embeds its full underlying data, and this map plots ~220k raw
-# points, which would make a saved panel ~175MB; rebuilding from the CSV
-# (which already persists) is cheap and avoids that bloat.
-#
-# Output:
-#   pixel_approach/charts/dashboard_ndvi.pdf
-#   pixel_approach/charts/dashboard_ndwi.pdf
-#   pixel_approach/charts/dashboard_ndvi_ratio.pdf (same layout, fire/beetle
-#     bars as ratio vs. Cluster 1 instead of raw %) -- generated in parallel
-#     from panel_fire_<idx>_ratio.rds/panel_beetle_<idx>_ratio.rds, raw
-#     dashboards untouched
-#   pixel_approach/charts/dashboard_ndwi_ratio.pdf
+# Output: pixel_approach/charts/dashboard_{ndvi,ndwi}{,_ratio}.pdf
 
 sn_boundary <- st_read("data_common/processed/sierra_nevada_boundary.geojson", quiet = TRUE)
 
@@ -31,8 +14,7 @@ style        <- build_cluster_style(3)
 cluster_cols <- style$cols
 clust_labels <- style$labels
 
-# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
-# ignore theme's bold face, so degree labels are recreated manually.
+# coord_fixed (not coord_sf) so the degree labels can be bold
 boundary_xy <- as.data.frame(st_coordinates(sn_boundary))
 lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
 lat_labels <- function(y) sprintf("%g°%s", abs(y), ifelse(y < 0, "S", ifelse(y > 0, "N", "")))
@@ -57,14 +39,7 @@ build_map_panel <- function(clusters_path, label) {
     theme(
       plot.title      = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
       plot.caption    = element_text(hjust = 0.5, color = "#1B2A1F", size = 9, face = "bold"),
-      # Legend inset into the panel's upper-right corner, which is genuinely
-      # empty of data (lat > 38.0 & lon > -119.15 has zero pixels, for both
-      # NDVI and NDWI) -- a side legend was tried and abandoned:
-      # patchwork gives a coord_fixed-locked panel a column sized to its own
-      # aspect ratio and centers the (narrower) panel within it, leaving a
-      # large dead gap before the legend that neither plot_layout() width
-      # ratios, legend.box.spacing, nor patchwork::free() could close
-      # without either leaving the gap or clipping the legend text.
+      # Legend inside the map's empty upper-right corner
       legend.position             = "inside",
       legend.position.inside      = c(0.97, 0.97),
       legend.justification.inside = c(1, 1),
@@ -93,11 +68,7 @@ build_dashboard <- function(cfg, idx, ratio = FALSE) {
 
   suffix <- if (ratio) "_ratio" else ""
 
-  # Extra bottom/top margin here (not baked into the saved panels, which are
-  # also reused standalone in fire_by_cluster.pdf/beetle_tpa_by_cluster.pdf
-  # where this gap isn't needed) -- gives the bold "Relative risk" caption at
-  # the foot of fire_panel room to breathe before beetle_panel's title starts,
-  # which patchwork's "/" stacking doesn't add on its own.
+  # Extra space between the fire caption and the beetle title
   fire_panel   <- readRDS(sprintf("pixel_approach/data/processed/panel_fire_%s%s.rds", idx, suffix)) +
     labs(title = "Fire (MTBS)") +
     theme(plot.margin = margin(t = 5.5, r = 5.5, b = 34, l = 5.5))
@@ -105,11 +76,7 @@ build_dashboard <- function(cfg, idx, ratio = FALSE) {
     labs(title = "Beetle (USFS ADS)") +
     theme(plot.margin = margin(t = 28, r = 5.5, b = 5.5, l = 5.5))
 
-  # Map is tall/narrow (Sierra Nevada's geographic extent), bars are wide/short
-  # -- stacking them (map above bars) forces both into the same column width,
-  # leaving the map row mostly blank on the sides. Placing the map beside a
-  # stacked bar column instead pairs complementary shapes, filling a landscape
-  # canvas with far less dead space.
+  # Tall map on the left, the two bar charts stacked on the right
   title_suffix <- if (ratio) " (Ratio vs. Cluster 1)" else ""
   p <- ((map_panel) | (fire_panel / beetle_panel)) +
     plot_layout(widths = c(1, 1)) +

@@ -2,40 +2,8 @@ library(tidyverse)
 library(patchwork)
 library(zoo)
 
-# Timeline of the ACTUAL rolling r1/skew statistics per cluster, 2005-2014
-# -- not raw NDVI/NDWI level (which mostly reflects baseline vegetation
-# density, not CSD), and not a re-aggregated recompute (averaging pixel
-# residuals first, then computing rolling stats on the average, gives a
-# DIFFERENT answer than the real per-pixel tau_r1 means -- e.g. NDVI
-# cluster 1 flips sign). Instead reads the per-pixel rolling series
-# 03_pixel_stl_csd.R saves directly (ndvi_rolling_r1.rds etc.) and averages
-# THOSE within each cluster -- the same per-pixel quantity tau_r1_mean
-# already reports, just shown as its full time series.
-#
-# tau_var/rolling variance is excluded -- it isn't part of the clustering
-# method (replaced by tau_skew), and its own rolling trend didn't
-# distinguish cluster 3 either.
-#
-# Purpose: tau_r1_mean/tau_skew_mean only say a trend exists somewhere
-# across 2005-2014 -- they can't say WHEN. This chart checks whether
-# cluster 3's rising autocorrelation was already building years before the
-# 2012 drought (a real early-warning signal) or only appears after (a
-# post-hoc artifact).
-#
-# A third row -- rolling MEAN clim_resid level, not just its shape (r1/
-# skew) -- is included because skew alone can mislead: NDWI's skew
-# recovers after 2012 even though its actual residual level keeps getting
-# worse through 2014 (2013-2014 remained dry and high-VPD, among the most
-# severe growing-season stretches of the record, ruling out a genuine
-# wet-spell recovery). Skew measures
-# whether a few extreme months stand out against an otherwise-normal
-# majority -- once decline becomes widespread, skew can revert toward
-# symmetric even as the mean keeps worsening. Unlike r1/skew (nonlinear,
-# so per-pixel-then-averaged differs from averaged-then-computed), a MEAN
-# is linear -- averaging clim_resid across a cluster first, then taking a
-# rolling mean of that single series, is mathematically identical to the
-# reverse order, so this is computed cheaply without redoing 03's
-# expensive per-pixel rolling-window computation.
+# Cluster-average rolling level, r1 and skew over 2005-2014, to show whether
+# the trends started before the 2012 drought.
 #
 # Output: pixel_approach/charts/cluster_csd_rolling_timeline.pdf
 
@@ -60,12 +28,8 @@ index_config <- list(
 
 WIN <- 54
 
-# Reconstructs clim_resid for every pixel (same method as 03_pixel_stl_csd.R:
-# interpolate NAs -> subtract STL seasonal -> subtract climate prediction,
-# using the b0/b1/b2/seas_01..12 already saved per pixel), then averages
-# across all pixels in each cluster first (cheap, and valid for a linear
-# statistic -- see header), then takes a rolling mean of that single series
-# over the same WIN=54 windows as r1/skew, for matching date resolution.
+# Rebuilds clim_resid from the coefficients 03 saved, then takes the rolling
+# mean of each cluster's average (same as averaging per-pixel rolling means)
 build_level_trajectory <- function(cfg, clusters) {
   mat <- readRDS(cfg$mat_path)
   keep_cols <- colnames(mat) <= "2014-12-01"
@@ -98,8 +62,6 @@ build_level_trajectory <- function(cfg, clusters) {
   out <- vector("list", 3)
   for (k in 1:3) {
     rows <- which(clusters$cluster == k)
-    # Cluster mean first (cheap), then rolling mean of that single series --
-    # identical result to per-pixel-rolling-then-averaging, since mean is linear.
     cluster_mean_series <- colMeans(clim_resid[rows, , drop = FALSE], na.rm = TRUE)
     rolled <- vapply(window_idx, function(idx) mean(cluster_mean_series[idx]), numeric(1))
     out[[k]] <- tibble(date = window_end_dates, cluster = factor(k, levels = 1:3),
@@ -118,9 +80,7 @@ build_cluster_trajectories <- function(cfg) {
   skew_mat <- readRDS(cfg$skew_path)
   dates    <- as.Date(colnames(r1_mat))
 
-  # Row i of each matrix corresponds to pixel_id == i -- 03_pixel_stl_csd.R
-  # builds these via future_lapply(seq_len(n_pixels), ...), same order as
-  # pixel_meta$pixel_id (which is 1:n_pixels).
+  # Row i of each rolling matrix is pixel_id i
   build_one <- function(mat, stat_name) {
     out <- vector("list", 3)
     for (k in 1:3) {

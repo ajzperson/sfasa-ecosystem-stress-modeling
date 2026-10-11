@@ -1,10 +1,7 @@
 library(tidyverse)
 library(terra)
 
-# Extracts per-pixel PPT (Feb 2000 - Dec 2016, monthly) at each NDVI pixel
-# centroid, bilinear-interpolated from PRISM's ~4km grid down to the 500m
-# NDVI grid. Unzips prismz.zip on first run if needed. Row order matches
-# pixel_metadata.csv (pixel_id).
+# Interpolates monthly PRISM precipitation (Feb 2000-Dec 2016) at each pixel centroid.
 #
 # Output: pixel_approach/data/processed/ppt_matrix.rds
 

@@ -2,23 +2,14 @@ library(tidyverse)
 library(sf)
 library(cluster)
 
-# Shared logic between 06_clustering.R (per-index) and
-# 06b_clustering_combined.R (combined NDVI+NDWI) -- the two scripts differ
-# in how many features they cluster on (2 vs 4) and relabel clusters by
-# stress rank the same way (unweighted composite sum of the residualized
-# features; 06b z-scores them first), but share everything else: baseline-density residualization,
-# the K-sweep loop, and the two chart builders. Sourced by both, not run
-# standalone.
+# Helpers shared by 06_clustering.R and 06b_clustering_combined.R.
 
-# --- Cluster color/label style, shared by every K-means chart in this repo ---
+# Blue (least stressed) -> red (most stressed) colors and labels for K clusters
 build_cluster_style <- function(K) {
   cols <- setNames(
     colorRampPalette(c("#2166AC", "#92C5DE", "#F4A582", "#D73027"))(K),
     as.character(seq_len(K))
   )
-  # K=1 is degenerate (one cluster can't be both least and most stressed),
-  # so it gets its own generic label. K=4's two middle tiers get distinct
-  # labels (low-/high-moderate); any other K just repeats "Moderate".
   mid_labels <- if (K == 4) {
     c(" - Low-moderate", " - High-moderate")
   } else {
@@ -32,10 +23,7 @@ build_cluster_style <- function(K) {
   list(cols = cols, labels = labels)
 }
 
-# --- Baseline vegetation density (mean pre-2015 level), per pixel ---
-# tau_r1/tau_skew both correlate with how much forest a pixel has to begin
-# with, which otherwise leaks into cluster assignment -- this is what gets
-# residualized out below.
+# Baseline vegetation density: each pixel's mean index value before 2015
 compute_base_level <- function(mat_path, pixel_ids, col_name) {
   mat       <- readRDS(mat_path)
   mat_dates <- as.Date(colnames(mat))
@@ -47,10 +35,7 @@ compute_base_level <- function(mat_path, pixel_ids, col_name) {
   out
 }
 
-# Adds resid_<tau_r1_col>/resid_<tau_skew_col>-equivalent columns to `d` by
-# regressing each against `base_level_col`. Caller supplies the output
-# column names so 06 (unsuffixed: resid_tau_r1) and 06b (suffixed per
-# index: resid_tau_r1_ndvi) can both use this unchanged.
+# Adds the residuals of tau_r1 and tau_skew regressed on base level
 residualize_tau <- function(d, tau_r1_col, tau_skew_col, base_level_col,
                             out_r1_col, out_skew_col) {
   d[[out_r1_col]]   <- resid(lm(reformulate(base_level_col, tau_r1_col),   data = d))
@@ -58,14 +43,13 @@ residualize_tau <- function(d, tau_r1_col, tau_skew_col, base_level_col,
   d
 }
 
-# --- K-means sweep (K=2-8) for the elbow/silhouette charts, plus the fit
-# at the chosen K (reused instead of re-running kmeans() a second time) ---
+# K-means for K = 2-8 (elbow/silhouette), returning the fit at the chosen K
 run_kmeans_sweep <- function(feat, K, SEED, k_range = 2:8,
                              nstart = 25, iter.max = 100) {
   wcss_vec <- numeric(length(k_range))
   sil_vec  <- numeric(length(k_range))
 
-  # Subsample for silhouette (full distance matrix on ~250k pixels is too large)
+  # Silhouette on a subsample; the full distance matrix is too large
   set.seed(SEED)
   sil_idx  <- sample(nrow(feat), min(5000, nrow(feat)))
   feat_sil <- feat[sil_idx, ]
@@ -83,7 +67,6 @@ run_kmeans_sweep <- function(feat, K, SEED, k_range = 2:8,
   sweep_df <- data.frame(k = k_range, wcss = wcss_vec, silhouette = sil_vec)
 
   if (is.null(km_final)) {
-    # K fell outside the swept range, so it wasn't computed above
     set.seed(SEED)
     km_final <- kmeans(feat, centers = K, nstart = nstart, iter.max = iter.max)
   }
@@ -91,7 +74,7 @@ run_kmeans_sweep <- function(feat, K, SEED, k_range = 2:8,
   list(sweep_df = sweep_df, km_final = km_final)
 }
 
-# --- Elbow + silhouette panel (one "row"), titled per caller ---
+# Elbow + silhouette charts side by side
 build_k_sweep_panel <- function(sweep_df, K, title_prefix) {
   k_range <- sweep_df$k
 
@@ -128,9 +111,7 @@ build_k_sweep_panel <- function(sweep_df, K, title_prefix) {
   p_elbow + p_sil
 }
 
-# --- Cluster map panel, titled per caller. `d` must have lon/lat/cluster. ---
-# Plain polygon on coord_fixed(), not coord_sf() -- its graticule labels
-# ignore theme's bold face, so degree labels are recreated manually.
+# Cluster map; d needs lon/lat/cluster. coord_fixed (not coord_sf) so axis labels can be bold.
 build_cluster_map_panel <- function(d, sn_boundary, cluster_cols, clust_labels, title) {
   boundary_xy <- as.data.frame(sf::st_coordinates(sn_boundary))
   lon_labels <- function(x) sprintf("%g°%s", abs(x), ifelse(x < 0, "W", ifelse(x > 0, "E", "")))
@@ -150,12 +131,7 @@ build_cluster_map_panel <- function(d, sn_boundary, cluster_cols, clust_labels, 
     guides(color = guide_legend(override.aes = list(size = 3, alpha = 1))) +
     theme_bw() +
     theme(
-      # "plot" (not the default "panel") so a long title centers over the
-      # full device width, including the legend's horizontal space -- at
-      # "panel" a long title centers over just the (legend-narrowed) panel
-      # and overflows past the left edge of the device, where it's clipped
-      # (no such room on the right, which just extends harmlessly into the
-      # legend's own whitespace).
+      # Center the title over the whole plot so long titles aren't clipped
       plot.title.position = "plot",
       plot.title      = element_text(hjust = 0.5, face = "bold", color = "#1B2A1F"),
       plot.caption    = element_text(hjust = 0.5, color = "#1B2A1F", size = 8, face = "bold",

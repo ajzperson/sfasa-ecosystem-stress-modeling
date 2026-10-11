@@ -4,17 +4,12 @@ library(patchwork)
 
 source("../src/clustering_helpers.R")
 
-# Snapshot of .GlobalEnv before this file writes anything into it (see
-# cleanup at the bottom -- same reasoning as test-06-clustering.R).
+# Tests for 08_beetle_validation.R.
+
+# Globals present before this file; anything newer is removed at the end
 .pre_existing_globals <- ls(.GlobalEnv)
 
-# Load only VALIDATION_YEARS/year_label and run_beetle_validation() from
-# 08_beetle_validation.R, stopping before the driver code that loads real
-# ~250k-pixel data (index_config, beetle_flags). run_beetle_validation()
-# references year_label as a free variable and calls build_cluster_style()
-# (from clustering_helpers.R, sourced above) -- both must be visible via
-# its closure, so its definition is eval'd into .GlobalEnv, matching
-# test-06-clustering.R's run_clustering() pattern.
+# Load the function into .GlobalEnv, skipping real-data loads
 exprs    <- parse("../src/08_beetle_validation.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
@@ -27,15 +22,10 @@ for (i in seq_len(stop_at - 1)) {
   if (!skip_lines[i]) eval(exprs[[i]], envir = .GlobalEnv)
 }
 
-# beetle_flags, as run_beetle_validation() receives it, already has `tpa`
-# (pmax across the validation-window tpa_<year> columns) and `any_mortality`
-# (tpa > 0) -- that reduction happens in the driver code above, which is
-# skipped, so fixtures here supply those two columns directly.
+# Fixtures supply tpa and any_mortality directly
 
 test_that("run_beetle_validation computes mortality rate and relative risk correctly", {
-  # 3 clusters x 10 pixels. Cluster 1: 2/10 mortality (tpa=5 when present).
-  # Cluster 2: 5/10 mortality. Cluster 3: 8/10 mortality. Hand-computable
-  # relative risk (Cluster 3 vs 1): 80% / 20% = 4.00x.
+  # Mortality 2/10, 5/10, 8/10 -> RR (3 vs 1) = 4.00
   pixel_ids <- 1:30
   clusters  <- factor(rep(1:3, each = 10), levels = 1:3)
   mortality <- c(rep(TRUE, 2), rep(FALSE, 8),   # cluster 1: 2/10
@@ -55,8 +45,6 @@ test_that("run_beetle_validation computes mortality rate and relative risk corre
 
   expect_equal(result$zonal$pct_with_mortality, c(20, 50, 80))
   expect_equal(result$zonal$n_with_mortality, c(2, 5, 8))
-  # rr_c3_vs_c1 isn't returned directly, but ratio_to_c1 (in zonal) is the
-  # same computation (pct_with_mortality / cluster-1's pct_with_mortality).
   expect_equal(result$zonal$ratio_to_c1, c(1, 2.5, 4), tolerance = 1e-6)
 })
 
@@ -77,8 +65,7 @@ test_that("run_beetle_validation's ratio_to_c1 is exactly 1.00x for Cluster 1 by
 })
 
 test_that("run_beetle_validation's mean_tpa_affected averages only mortality pixels, not all", {
-  # Cluster with 2 pixels: one has mortality (tpa=10), one has none (tpa=0).
-  # mean_tpa_affected should be 10 (mortality pixels only), not 5 (all pixels).
+  # mean_tpa_affected averages only pixels with mortality
   pixel_ids <- 1:2
   pixel_path <- tempfile(fileext = ".csv")
   write_csv(tibble(pixel_id = pixel_ids, cluster = factor(c(1, 1), levels = 1)),

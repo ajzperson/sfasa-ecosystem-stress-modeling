@@ -1,6 +1,4 @@
-# Installs R package dependencies for this project's climate downloads,
-# geospatial processing, CSD time-series analysis, parallelization,
-# clustering, charts, and testing.
+# Installs the R packages this project uses.
 
 install.packages(c(
   # Data manipulation & visualization
@@ -11,12 +9,7 @@ install.packages(c(
   # Geospatial & climate data
   "terra",         # raster data (NDVI, NDWI, VPD, PRISM, MTBS, SWE)
   "sf",            # spatial features
-  "tigris",        # US Census county boundaries
   "prism",         # PRISM climate data download
-  "elevatr",       # elevation extraction (USGS 3DEP)
-  # climateR — install from GitHub (not on CRAN), see below.
-  # AOI is not needed — sf objects work directly.
-
   "remotes",       # needed to install packages from GitHub
 
   # NA interpolation
@@ -42,17 +35,17 @@ install.packages(c(
 # climateR is not on CRAN — install from GitHub:
 remotes::install_github("mikejohnson51/climateR")
 
-# earlywarnings is not on CRAN — install from GitHub:
-remotes::install_github("earlywarningtoolbox/earlywarnings-R")
-
-# --- Not currently used by any script in this repo — kept in case of future work ---
+# Not currently used by any script
 install.packages(c(
   "ncdf4",         # NetCDF file handling
   "tseries",       # time-series statistics
   "forecast",      # ARIMA, forecasting
-  "car",           # VIF (variance inflation factor) for multicollinearity checks
+  "car",           # VIF for multicollinearity checks
   "torch",         # deep neural networks
   "caret",         # ML utilities & preprocessing
-  "multcompView",  # Tukey HSD letters -- not used
-  "ggsignif"       # significance brackets -- dead code in 06_clustering.R
+  "multcompView",  # Tukey HSD letters
+  "ggsignif",      # significance brackets
+  "tigris",        # US Census county boundaries
+  "elevatr"        # elevation extraction (USGS 3DEP)
 ))
+remotes::install_github("earlywarningtoolbox/earlywarnings-R")

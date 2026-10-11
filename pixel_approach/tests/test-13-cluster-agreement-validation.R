@@ -3,14 +3,7 @@ library(tidyverse)
 library(sf)
 library(patchwork)
 
-# 13_cluster_agreement_validation.R has no functions of its own (besides
-# the chart-only build_group_panel at the very end, not covered) -- flat
-# top-level pipeline (inner-join NDVI+NDWI clusters -> classify agreement
-# group -> join real-world outcomes -> zonal rates -> relative risk). Real
-# ~250k-pixel loads (ndvi, ndwi, fire, beetle) are skipped and replaced
-# with small synthetic fixtures below; chart-building lines are skipped
-# too. `eval()` uses the default envir since nothing kept here is wrapped
-# in a function.
+# Tests for 13_cluster_agreement_validation.R, run on synthetic inputs (charts skipped).
 exprs    <- parse("../src/13_cluster_agreement_validation.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
@@ -20,14 +13,7 @@ skip_lines <- grepl(
 stop_at <- which(grepl("^plot_df <-", src_text))[1]
 stopifnot(!is.na(stop_at))
 
-# 3 agreement groups x 10 pixels, plus a "Neither" group (should be
-# dropped) and one NDVI-only pixel absent from ndwi (should be dropped by
-# the inner_join). Hand-computable rates:
-#   Both (1-10):         fire 6/10=60%, beetle 3/10=30%
-#   NDVI-3 only (11-20):  fire 3/10=30%, beetle 3/10=30%
-#   NDWI-3 only (21-30):  fire 2/10=20%, beetle 1/10=10%
-#   Neither (31-33):     excluded entirely -- group == "Neither"
-# Relative risk (Both vs NDWI-3 only): Fire 60/20=3.00x, Beetle 30/10=3.00x.
+# Both / NDVI-3 only / NDWI-3 only = pixels 1-10 / 11-20 / 21-30; 31-33 Neither, 999 NDVI-only
 ndvi <- tibble(
   pixel_id = c(1:30, 31:33, 999),
   lon = -120, lat = 38,

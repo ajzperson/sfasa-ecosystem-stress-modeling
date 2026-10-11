@@ -3,33 +3,11 @@ library(patchwork)
 
 source("pixel_approach/src/clustering_helpers.R")
 
-# Cross-validates K-means clusters against MTBS burn exposure (extracted in
-# 02c_pixel_fire.R, independent of clustering). A pixel counts as "burned"
-# only at moderate+ MTBS severity -- see 02c for the extraction details.
+# Share of pixels burned (MTBS moderate+) in 2015-2016 in each NDVI/NDWI cluster.
 #
-# Two checks, same fire data, different time windows:
-#   1. Baseline window (2000-2014): a sanity check, not a real cross-tab --
-#      06_clustering.R already excludes any pixel burned in this window
-#      before clustering, so every cluster's rate here should read ~0%.
-#   2. Validation window (VALIDATION_YEARS below, default 2015-2016): the
-#      real ground-truth outcome, same role as beetle mortality
-#      (08_beetle_validation.R) -- default matches beetle's window so both
-#      validators are compared on equal footing. pixel_fire.csv has
-#      one column per year (burned_2015..burned_2019), so this window can
-#      be widened/narrowed here without re-running extraction.
-#
-# Output:
-#   pixel_approach/charts/fire_by_cluster.pdf (NDVI + NDWI side by side)
-#   pixel_approach/charts/fire_by_cluster_ratio.pdf (same, bars as ratio vs.
-#     Cluster 1 instead of raw %) -- generated in parallel, raw chart/panels
-#     untouched
-#   pixel_approach/data/processed/pixel_fire_ndvi.csv
-#   pixel_approach/data/processed/pixel_fire_ndwi.csv
-#   pixel_approach/data/processed/panel_fire_ndvi.rds (per-index panel,
-#     reused by 11_dashboard.R)
-#   pixel_approach/data/processed/panel_fire_ndvi_ratio.rds
-#   pixel_approach/data/processed/panel_fire_ndwi.rds
-#   pixel_approach/data/processed/panel_fire_ndwi_ratio.rds
+# Output: pixel_approach/charts/fire_by_cluster{,_ratio}.pdf
+#         pixel_approach/data/processed/pixel_fire_{ndvi,ndwi}.csv
+#         pixel_approach/data/processed/panel_fire_{ndvi,ndwi}{,_ratio}.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
@@ -49,8 +27,7 @@ index_config <- list(
 
 fire_flags <- read_csv("pixel_approach/data/processed/pixel_fire.csv", show_col_types = FALSE)
 
-# OR together whichever per-year burned_<year> columns fall in
-# VALIDATION_YEARS into one combined validation-window flag.
+# Burned in any validation year
 year_cols <- sprintf("burned_%d", VALIDATION_YEARS)
 stopifnot(all(year_cols %in% names(fire_flags)))
 fire_flags$burned_validation_15_16 <- rowSums(fire_flags[year_cols]) > 0
@@ -82,17 +59,10 @@ run_fire_validation <- function(cfg, fire_flags) {
   cat(sprintf("\n=== %s: Fire Exposure by Cluster (MTBS moderate+ severity) ===\n", cfg$label))
   print(zonal)
 
-  # Relative risk and ratio_to_c1 are computed from the unrounded rate
-  # (pct_burned_validation_exact), not the 1-decimal display value --
-  # dividing already-rounded percentages compounds their rounding error
-  # into the ratio, and fire rates are small enough (~2-3%) that this is
-  # not negligible (e.g. 1.8%/3.3% rounded reads 1.83x vs. the true 1.79x).
   rr_c3_vs_c1 <- zonal$pct_burned_validation_exact[zonal$cluster == 3] /
     zonal$pct_burned_validation_exact[zonal$cluster == 1]
   cat(sprintf("  Relative risk (Cluster 3 vs 1): %.2fx\n", rr_c3_vs_c1))
 
-  # Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
-  # Cluster 1 is 1.00x by construction.
   zonal <- zonal |>
     mutate(ratio_to_c1 = pct_burned_validation_exact / pct_burned_validation_exact[cluster == 1])
 
@@ -169,8 +139,7 @@ p_combined_ratio <- (results$ndvi$plot_ratio + results$ndwi$plot_ratio) +
 ggsave(OUT_CHART_RATIO, plot = p_combined_ratio, width = 12, height = 5, dpi = 150)
 cat(sprintf("✓ Saved: %s\n", OUT_CHART_RATIO))
 
-# Individual per-index panels, saved separately so 11_dashboard.R can
-# assemble a one-page-per-index summary without duplicating this plotting code.
+# Per-index panels for 11_dashboard.R
 for (idx in names(index_config)) {
   panel_path <- sprintf("pixel_approach/data/processed/panel_fire_%s.rds", idx)
   saveRDS(results[[idx]]$plot, panel_path)

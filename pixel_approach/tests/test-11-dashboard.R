@@ -5,19 +5,12 @@ library(patchwork)
 
 source("../src/clustering_helpers.R")
 
-# Snapshot of .GlobalEnv before this file writes anything into it (see
-# cleanup at the bottom -- same reasoning as test-06-clustering.R).
+# Tests for 11_dashboard.R (map panel only).
+
+# Globals present before this file; anything newer is removed at the end
 .pre_existing_globals <- ls(.GlobalEnv)
 
-# Loads lon_labels/lat_labels/build_map_panel (plus their cluster_cols/
-# clust_labels/boundary_xy dependencies) from 11_dashboard.R, stopping
-# before the driver code that loads real ~250k-pixel data and calls
-# build_dashboard() (which reads fire/beetle panels from hardcoded
-# repo-root-relative paths -- pixel_approach/data/processed/panel_fire_
-# <idx><suffix>.rds -- not parameterized via its `cfg` argument, so it
-# can't be pointed at synthetic fixtures the way build_map_panel can; not
-# covered here). sn_boundary/boundary_xy are skipped (real geojson) and
-# replaced with a tiny synthetic square boundary instead.
+# build_dashboard() reads fixed panel paths, so it isn't tested
 exprs    <- parse("../src/11_dashboard.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl(
@@ -27,11 +20,7 @@ skip_lines <- grepl(
 stop_at <- which(grepl("^for \\(idx in names\\(index_config\\)\\)", src_text))[1]
 stopifnot(!is.na(stop_at))
 
-# build_map_panel()'s closure is forced into .GlobalEnv below (it needs
-# cluster_cols/clust_labels there too, same reasoning as
-# test-06-clustering.R's run_clustering()), so boundary_xy must be
-# assigned there explicitly -- plain `<-` would land in this file's own
-# environment instead, invisible to a .GlobalEnv-closured function.
+# Assigned into .GlobalEnv, where build_map_panel() looks it up
 assign("boundary_xy", data.frame(X = c(-121, -121, -118, -118, -121),
                                   Y = c(35, 40, 40, 35, 35)),
        envir = .GlobalEnv)

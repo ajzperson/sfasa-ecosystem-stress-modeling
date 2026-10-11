@@ -2,19 +2,11 @@ library(tidyverse)
 library(patchwork)
 library(ggtext)
 
-# Compares the combined NDVI+NDWI clustering's "most stressed" group against
-# the pixels where NDVI-alone and NDWI-alone's INDEPENDENT clusterings both
-# separately agreed on "full CSD" (the "Both" group from
-# 13_cluster_agreement_validation.R) -- tests whether the more complex
-# combined 4-feature approach is rediscovering the same pixels a much
-# simpler two-index agreement check already finds, or flagging a genuinely
-# different set. Where they disagree, checks real 2015-2016 beetle/fire
-# outcomes to see which method is more predictive in the disagreement zone.
+# Compares the combined clustering's most-stressed cluster with pixels both
+# NDVI and NDWI flag most-stressed, and their 2015-2016 damage rates.
 #
-# Output:
-#   pixel_approach/charts/combined_vs_agreement.pdf
-#   pixel_approach/charts/combined_vs_agreement.png
-#   pixel_approach/data/processed/combined_vs_agreement.csv
+# Output: pixel_approach/charts/combined_vs_agreement.{pdf,png}
+#         pixel_approach/data/processed/combined_vs_agreement.csv
 
 combined <- read_csv("pixel_approach/data/processed/combined_pixel_clusters.csv", show_col_types = FALSE) |>
   select(pixel_id, combined_cluster = cluster)
@@ -54,7 +46,6 @@ cat(sprintf("Independent agreement (both alone flag full CSD): %d pixels\n", n_b
 cat(sprintf("Overlap: %d pixels\n", n_both))
 cat(sprintf("Jaccard index (overlap / union): %.3f\n", jaccard))
 
-# --- Real-world validation in the disagreement zone -------------------------
 beetle <- read_csv("pixel_approach/data/processed/pixel_beetle.csv", show_col_types = FALSE)
 beetle$any_mortality <- (!is.na(beetle$tpa_2015) & beetle$tpa_2015 > 0) |
                          (!is.na(beetle$tpa_2016) & beetle$tpa_2016 > 0)
@@ -83,9 +74,7 @@ summary_tbl <- d |>
 cat("\n=== Real-world 2015-2016 damage rates by group ===\n")
 print(summary_tbl)
 
-# Computed from the unrounded rate (pct_*_exact), not the 1-decimal display
-# value -- dividing already-rounded percentages compounds their rounding
-# error into the ratio.
+# Ratios use unrounded rates
 rr_fire   <- summary_tbl$pct_fire_exact[summary_tbl$group == "Both"] /
   summary_tbl$pct_fire_exact[summary_tbl$group == "Neither"]
 rr_beetle <- summary_tbl$pct_beetle_exact[summary_tbl$group == "Both"] /
@@ -95,7 +84,6 @@ cat(sprintf("  Relative risk (Both vs Neither): Fire %.2fx, Beetle %.2fx\n", rr_
 write_csv(d, "pixel_approach/data/processed/combined_vs_agreement.csv")
 cat("\n✓ Saved: pixel_approach/data/processed/combined_vs_agreement.csv\n")
 
-# --- Chart -------------------------------------------------------------
 plot_df <- summary_tbl |>
   pivot_longer(cols = c(pct_beetle, pct_fire), names_to = "validator", values_to = "pct") |>
   mutate(validator = recode(validator, pct_beetle = "Beetle", pct_fire = "Fire"),
@@ -127,12 +115,7 @@ p <- ggplot(plot_df, aes(x = group, y = pct, fill = validator)) +
     legend.position = "top"
   )
 
-# --- Two circles above the bar chart: each shows what ONE definition of
-# "most-stressed" looks like on its own, before the bar chart crosses them
-# together. Left = the alone-indices definition (NDVI_3 & NDWI_3 overlap);
-# right = the combined-clustering definition (NDVI+NDWI_4). Same total
-# population (n = nrow(d)) in both, so the two circles are directly
-# comparable in size.
+# Pie charts of each flagged group's share of all pixels
 build_pie <- function(n_flagged, n_total, flagged_label, wedge_color, color_label) {
   pie_df <- tibble(
     slice = factor(c(flagged_label, "Rest"), levels = c(flagged_label, "Rest")),
@@ -140,21 +123,13 @@ build_pie <- function(n_flagged, n_total, flagged_label, wedge_color, color_labe
   ) |>
     mutate(pct = 100 * n / sum(n))
 
-  # Only the short %/n go inside the wedge -- the descriptive slice name
-  # (e.g. "NDVI_3 & NDWI_3") is too long to fit inside the smaller wedge
-  # without overflowing past its edge, so it moves to the subtitle instead,
-  # with the wedge's own color as the visual link back to which slice it names.
+  # Slice name goes in the subtitle; it doesn't fit in the wedge
   ggplot(pie_df, aes(x = "", y = n, fill = slice)) +
     geom_col(width = 1, color = "white", linewidth = 0.6) +
     coord_polar(theta = "y", start = 0) +
     geom_text(aes(label = sprintf("%.1f%%\n(n=%s)", pct, format(n, big.mark = ","))),
                position = position_stack(vjust = 0.5), size = 3.6, fontface = "bold",
                color = "#1B2A1F") +
-    # Red family -- #D73027 (the "most-stressed" red used for NDVI+NDWI_4
-    # everywhere else in the deck, slides 12-14) is reserved for that one
-    # wedge only; NDVI_3 ∩ NDWI_3 gets a lighter tint of the same red so the
-    # two pies read as one consistent color family without reusing the
-    # reserved hue.
     scale_fill_manual(values = setNames(c(wedge_color, "grey85"), c(flagged_label, "Rest")), guide = "none") +
     labs(subtitle = sprintf("%s = **%s**", color_label, flagged_label)) +
     theme_void() +
@@ -165,15 +140,7 @@ n_total <- nrow(d)
 pie_alone    <- build_pie(n_b, n_total, "NDVI_3 ∩ NDWI_3", "#E2655E", "Light red")
 pie_combined <- build_pie(n_a, n_total, "NDVI+NDWI_4",     "#D73027", "Red")
 
-# Small bordered notes flanking the two circles, spelling out what the
-# cluster-number notation means -- "3" and "4" refer to different K's
-# (separate clustering is K=3, combined is K=4), so both are each
-# clustering's own top/most-stressed tier, not directly comparable numbers.
-# geom_textbox (ggtext) instead of plain annotate("text", ...) -- it auto-wraps
-# to the given width and understands markdown, so the term itself (NDVI_3,
-# NDWI_3, NDVI+NDWI_4) can be marked with **term**; fontface="bold" below
-# makes the whole block (term and definition alike) bold, matching every
-# other text element in the deck.
+# Notes defining NDVI_3, NDWI_3 and NDVI+NDWI_4
 build_note <- function(text_md) {
   ggplot() +
     geom_textbox(aes(x = 0.5, y = 0.5, label = text_md),
@@ -207,9 +174,6 @@ p_full <- (note_left | pie_alone | pie_combined | note_right) / p +
 ggsave("pixel_approach/charts/combined_vs_agreement.pdf", plot = p_full, width = 9, height = 9.5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_vs_agreement.pdf\n")
 
-# Also saved as PNG: the "∩" in the group labels above is outside the PDF
-# device's built-in font encoding (falls back to "." when embedded as a
-# vector font), but rasterizes correctly through the PNG device -- this PNG
-# is the version actually used for the slide embed.
+# PNG for the slides: the PDF font renders "∩" as "."
 ggsave("pixel_approach/charts/combined_vs_agreement.png", plot = p_full, width = 9, height = 9.5, dpi = 300)
 cat("✓ Saved: pixel_approach/charts/combined_vs_agreement.png\n")

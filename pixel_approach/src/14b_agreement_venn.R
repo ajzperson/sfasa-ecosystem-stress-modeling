@@ -1,21 +1,8 @@
 library(tidyverse)
 
-# A 2-circle Venn diagram (NDVI Most-stressed, NDWI Most-stressed) for
-# slide 15 (agreement between NDVI and NDWI predicts higher real-world
-# damage than either flags alone) -- same visual language as
-# 15_overlap_venn.R (slide 16), but simpler: 13_cluster_agreement_validation.R
-# only ever compares NDVI-alone vs NDWI-alone directly (no Combined circle,
-# and "Neither" is deliberately dropped -- "not the question this script
-# asks", per that script's own comment), so this Venn only needs the two
-# circles plus their overlap, no G4/outer boundary.
+# Two-circle Venn of NDVI vs NDWI most-stressed pixels; prints the group rates.
 #
-# Colors are red-family tints, matching 15_overlap_venn.R's NDVI_3/NDWI_3
-# tiers exactly (same clusters, so same color in both places) -- #D73027,
-# the deck's "most-stressed" red from slides 12-14, is reserved for
-# NDVI+NDWI_4 only and never appears here.
-#
-# Output:
-#   pixel_approach/charts/agreement_venn.pdf
+# Output: pixel_approach/charts/agreement_venn.pdf
 
 d <- read_csv("pixel_approach/data/processed/combined_vs_agreement.csv", show_col_types = FALSE)
 
@@ -39,7 +26,6 @@ cat(sprintf("Both n=%.0f beetle=%.1f%% fire=%.1f%%\n", both_n["n"], both_n["pct"
 cat(sprintf("NDVI-3 total = %.0f | NDWI-3 total = %.0f\n",
             ndvi_n["n"] + both_n["n"], ndwi_n["n"] + both_n["n"]))
 
-# --- Circle geometry ---------------------------------------------------
 circle_pts <- function(cx, cy, r, n = 200) {
   theta <- seq(0, 2 * pi, length.out = n)
   tibble(x = cx + r * cos(theta), y = cy + r * sin(theta))
@@ -50,13 +36,7 @@ offset <- 0.7
 circ_ndvi <- circle_pts(-offset, 0, r)
 circ_ndwi <- circle_pts( offset, 0, r)
 
-# No G1/G2/G3 shading system here (that's for the 3-circle case in
-# 15_overlap_venn.R, which needs to rank four regions). With only two
-# circles there's nothing to rank -- NDVI-3-only and NDWI-3-only should
-# just be their plain base colors, with the natural alpha-overlap giving
-# "Both" its own shade. A wash layer here would darken the base colors
-# away from 15_overlap_venn.R's NDVI_3/NDWI_3 tiers, breaking the
-# same-cluster-same-color match between the two venns.
+# Same NDVI/NDWI colors as 15_overlap_venn.R
 p <- ggplot() +
   geom_polygon(data = circ_ndvi, aes(x, y), fill = "#E2655E", alpha = 0.95, color = "black", linewidth = 0.5) +
   geom_polygon(data = circ_ndwi, aes(x, y), fill = "#EC9B97", alpha = 0.95, color = "black", linewidth = 0.5) +

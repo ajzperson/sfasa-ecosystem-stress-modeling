@@ -2,23 +2,14 @@ library(testthat)
 library(tidyverse)
 library(sf)
 
-# Loads rate()/circle_pts()/deg2rad() and the O1/O2/both group filters
-# from 15_overlap_venn.R, stopping before the sf polygon-boolean geometry
-# and chart. rate()/circle_pts() are exact duplicates of
-# 14b_agreement_venn.R's copies (this repo keeps a separate copy per
-# script rather than sharing them) -- only lightly smoke-tested here to
-# confirm this copy is wired the same way, not re-deriving every edge case.
+# Tests for the helpers and group filters in 15_overlap_venn.R (geometry and chart skipped).
 exprs    <- parse("../src/15_overlap_venn.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 skip_lines <- grepl("^d <-", src_text)
 stop_at <- which(grepl("^poly_A <-", src_text))[1]
 stopifnot(!is.na(stop_at))
 
-# 4 pixels each in: Both (agreement AND combined-top), O1-only (agreement,
-# not combined-top), O2-only (combined-top, not agreement), Neither.
-# O1 = filter(in_agreement_both) = Both + O1-only = 8 pixels.
-# O2 = filter(in_combined_top)   = Both + O2-only = 8 pixels.
-# both = Both = 4 pixels.
+# 4 pixels each: Both, O1-only, O2-only, Neither
 d <- tibble(
   pixel_id = 1:16,
   ndvi_cluster = c(rep(3, 12), rep(1, 4)),

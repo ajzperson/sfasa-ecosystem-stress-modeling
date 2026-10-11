@@ -1,15 +1,11 @@
 library(testthat)
 library(terra)
 
-# 02c_pixel_fire.R is a top-level script, not a set of functions, so these
-# tests replicate its key logic patterns on small synthetic rasters rather
-# than sourcing the script against the real multi-GB MTBS files.
+# Tests for the logic in 02c_pixel_fire.R, replicated on synthetic rasters.
 
-BURNED_SEVERITY <- c(3, 4)  # moderate, high -- same as the real script
+BURNED_SEVERITY <- c(3, 4)  # moderate, high
 
 test_that("severity reclassification keeps only moderate/high (3/4)", {
-  # MTBS codes: 1 = unburned/low, 2 = low severity, 3 = moderate, 4 = high,
-  # 5 = increased greenness, 6 = non-processing mask
   r <- rast(nrows = 1, ncols = 6, xmin = 0, xmax = 6, ymin = 0, ymax = 1, crs = "EPSG:32610")
   values(r) <- c(1, 2, 3, 4, 5, 6)
 
@@ -20,9 +16,7 @@ test_that("severity reclassification keeps only moderate/high (3/4)", {
 })
 
 test_that("explicit buffer polygon + extract(fun=max) aggregates correctly", {
-  # 10x10 raster, cell values 1:100. A point at the center with a 250-unit
-  # buffer should pick up the true max value among nearby cells, not just
-  # the value at the point's own cell.
+  # The buffer max should exceed the center cell's own value
   r <- rast(nrows = 10, ncols = 10, xmin = 0, xmax = 10, ymin = 0, ymax = 10, crs = "EPSG:32610")
   values(r) <- 1:100
   pts <- vect(data.frame(x = 5, y = 5), geom = c("x", "y"), crs = "EPSG:32610")
@@ -34,8 +28,7 @@ test_that("explicit buffer polygon + extract(fun=max) aggregates correctly", {
 })
 
 test_that("build_year_raster-style reclassify+resample-to-template preserves burned cells", {
-  # Mirrors 02c's build_year_raster(): reclassify to binary, then
-  # crop/resample onto a common template grid.
+  # Mirrors build_year_raster()
   r <- rast(nrows = 4, ncols = 4, xmin = 0, xmax = 4, ymin = 0, ymax = 4, crs = "EPSG:32610")
   values(r) <- c(1, 3, 2, 4,
                  1, 1, 1, 1,
@@ -53,8 +46,7 @@ test_that("build_year_raster-style reclassify+resample-to-template preserves bur
 })
 
 test_that("build_burned_raster-style OR-across-years combines multiple binary rasters", {
-  # Mirrors 02c's build_burned_raster(): max() across years == logical OR,
-  # and a NULL (missing year) is skipped rather than propagating NA.
+  # Mirrors build_burned_raster(): OR across years, skipping missing years
   r1 <- rast(nrows = 1, ncols = 3, xmin = 0, xmax = 3, ymin = 0, ymax = 1, crs = "EPSG:32610")
   values(r1) <- c(1, 0, 0)
   r2 <- rast(nrows = 1, ncols = 3, xmin = 0, xmax = 3, ymin = 0, ymax = 1, crs = "EPSG:32610")

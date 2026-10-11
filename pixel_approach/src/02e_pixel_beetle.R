@@ -1,11 +1,9 @@
 library(tidyverse)
 library(sf)
 
-# Extracts USFS ADS bark-beetle mortality (TPA -- trees per acre killed) for
-# every pixel in pixel_metadata.csv.
+# Per-pixel bark-beetle mortality (trees per acre killed), 2015 and 2016.
 #
 # Output: pixel_approach/data/processed/pixel_beetle.csv
-#   (pixel_id, tpa_2016, tpa_2015 -- column order follows data, not year)
 
 sf_use_s2(FALSE)   # IDS polygons have self-intersecting edges
 

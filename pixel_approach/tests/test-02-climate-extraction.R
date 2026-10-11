@@ -1,10 +1,7 @@
 library(testthat)
 library(terra)
 
-# 02a_pixel_vpd.R and 02b_pixel_ppt.R are top-level scripts, not functions,
-# so these tests replicate their key logic patterns on small synthetic
-# rasters/filenames rather than sourcing the scripts against the real
-# multi-GB source files.
+# Tests for the logic in 02a_pixel_vpd.R and 02b_pixel_ppt.R, replicated on synthetic data.
 
 target_dates <- seq(as.Date("2000-02-01"), as.Date("2016-12-01"), by = "month")
 target_ym    <- format(target_dates, "%Y%m")
@@ -20,10 +17,7 @@ test_that("date-range filtering (%in% target_ym) selects the correct subset", {
 })
 
 test_that("column dates derived from time() match layers even when source is out of order (regression test)", {
-  # Guards against deriving column labels from a separately-built,
-  # always-ascending date sequence instead of the subsetted raster's own
-  # time() -- with out-of-order source dates, that would silently swap
-  # labels (e.g. Jan/Mar) instead of matching each value to its real date.
+  # Labels must come from the raster's own dates, even when out of order
   dates_out_of_order <- as.Date(c("2020-03-01", "2020-02-01", "2020-01-01"))
   r <- rast(nrows = 1, ncols = 1, nlyrs = 3, xmin = 0, xmax = 1, ymin = 0, ymax = 1,
             crs = "EPSG:4326")
@@ -74,8 +68,7 @@ test_that("sort-before-stack pattern (02b) produces chronologically ordered date
 })
 
 test_that("bilinear extraction interpolates between known cell values", {
-  # 2x1 raster, cell centers at (0.5, 0.5)=10 and (1.5, 0.5)=20. A point
-  # exactly halfway between them should interpolate to 15.
+  # Halfway between cells of 10 and 20 should give 15
   r <- rast(nrows = 1, ncols = 2, xmin = 0, xmax = 2, ymin = 0, ymax = 1, crs = "EPSG:4326")
   values(r) <- c(10, 20)
 

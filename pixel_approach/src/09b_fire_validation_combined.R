@@ -2,19 +2,11 @@ library(tidyverse)
 
 source("pixel_approach/src/clustering_helpers.R")
 
-# Cross-validates the COMBINED (NDVI+NDWI 4-feature) clustering (06b) against
-# MTBS burn exposure (02c) -- same role as 09_fire_validation.R, but for the
-# combined-feature clustering approach instead of per-index clustering.
-# Only one cluster assignment per pixel now, so one chart, not two panels.
+# Share of pixels burned in 2015-2016 in each combined cluster.
 #
-# Output:
-#   pixel_approach/charts/combined_fire_by_cluster.pdf
-#   pixel_approach/charts/combined_fire_by_cluster_ratio.pdf (same, bars as
-#     ratio vs. Cluster 1 instead of raw %) -- generated in parallel, raw
-#     chart/panel untouched
-#   pixel_approach/data/processed/combined_pixel_fire.csv
-#   pixel_approach/data/processed/panel_fire_combined.rds
-#   pixel_approach/data/processed/panel_fire_combined_ratio.rds
+# Output: pixel_approach/charts/combined_fire_by_cluster{,_ratio}.pdf
+#         pixel_approach/data/processed/combined_pixel_fire.csv
+#         pixel_approach/data/processed/panel_fire_combined{,_ratio}.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
@@ -50,18 +42,12 @@ zonal <- pixels |>
 cat("\n=== Combined: Fire Exposure by Cluster (MTBS moderate+ severity) ===\n")
 print(zonal)
 
-# Relative risk and ratio_to_c1 are computed from the unrounded rate
-# (pct_burned_validation_exact), not the 1-decimal display value -- dividing
-# already-rounded percentages compounds their rounding error into the
-# ratio, and fire rates are small enough (~2-3%) that this is not
-# negligible (e.g. 1.8%/3.3% rounded reads 1.83x vs. the true 1.79x).
+# Ratios use unrounded rates
 K <- max(zonal$cluster, na.rm = TRUE)
 rr_worst_vs_best <- zonal$pct_burned_validation_exact[zonal$cluster == K] /
   zonal$pct_burned_validation_exact[zonal$cluster == 1]
 cat(sprintf("  Relative risk (Cluster %d vs 1): %.2fx\n", K, rr_worst_vs_best))
 
-# Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
-# Cluster 1 is 1.00x by construction.
 zonal <- zonal |>
   mutate(ratio_to_c1 = pct_burned_validation_exact / pct_burned_validation_exact[cluster == 1])
 
@@ -92,11 +78,7 @@ p_fire <- ggplot(zonal, aes(x = factor(cluster), y = pct_burned_validation,
         plot.caption  = element_text(hjust = 0.5, size = 14, face = "bold", color = "#1B2A1F",
                                       margin = margin(t = 14)))
 
-# Title/subtitle only on the standalone chart -- kept off the base p_fire so
-# the panel saved below stays clean for 11b_dashboard_combined.R (matches
-# 09_fire_validation.R, where the per-index panel only ever gets a short
-# cfg$label title and the elaborate title/subtitle is added separately, at
-# ggsave time, for that script's own two-panel combined chart).
+# Title only on the standalone chart; the saved panel stays untitled for 11b
 p_fire_standalone <- p_fire +
   labs(title    = sprintf("MTBS Moderate+ Burn Severity by Combined Cluster (%s)", year_label),
        subtitle = "% of pixels burned (severity >= moderate) — ground-truth evaluation, after cluster assignment")
@@ -127,8 +109,7 @@ p_fire_ratio_standalone <- p_fire_ratio +
 ggsave("pixel_approach/charts/combined_fire_by_cluster_ratio.pdf", plot = p_fire_ratio_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_fire_by_cluster_ratio.pdf\n")
 
-# Saved separately so 11b_dashboard_combined.R can assemble a one-page
-# summary without duplicating this plotting code.
+# Panels for 11b_dashboard_combined.R
 saveRDS(p_fire, "pixel_approach/data/processed/panel_fire_combined.rds")
 cat("✓ Saved: pixel_approach/data/processed/panel_fire_combined.rds\n")
 

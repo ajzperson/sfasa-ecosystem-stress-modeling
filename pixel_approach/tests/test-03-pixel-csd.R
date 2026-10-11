@@ -5,12 +5,7 @@ library(future.apply)
 library(progressr)
 options(progressr.enable = TRUE)
 
-# Load only the function definitions from 03_pixel_stl_csd.R (roll_r1,
-# roll_var, roll_skew, edge_na_run, run_pixel_csd), stopping before its
-# driver block (Sys.setenv/plan/for-loop over real ~1GB matrices). The
-# script's own top-level loads (pixel_meta/vpd_mat_full/ppt_mat_full) use
-# project-root-relative paths, so wd is temporarily switched there — the
-# tests below don't use those real files anyway (synthetic inputs instead).
+# Tests for 03_pixel_stl_csd.R; loads its functions without running the driver.
 exprs    <- parse("../src/03_pixel_stl_csd.R")
 src_text <- vapply(exprs, function(e) paste(deparse(e), collapse = "\n"), character(1))
 stop_at  <- which(grepl("^Sys\\.setenv\\(VECLIB_MAXIMUM_THREADS", src_text))
@@ -20,35 +15,21 @@ setwd("../..")
 for (e in exprs[seq_len(stop_at - 1)]) eval(e, envir = .GlobalEnv)
 setwd(old_wd)
 
-# ----------------------------------------------------------------------------
-# Pure helper functions
-# ----------------------------------------------------------------------------
 
 test_that("roll_r1 detects strong positive autocorrelation", {
-  # A perfectly linear series won't land exactly at 1 under this formula --
-  # dividing the pairwise-product sum by length(x) instead of the actual
-  # pair count (n-1, not n) leaves a systematic (n-1)/n shortfall, on top
-  # of endpoints only contributing to one product each. 0.7 still clearly
-  # demonstrates strong positive detection without assuming a value near 1.
+  # A linear series scores below 1 with this formula, so test > 0.7
   x <- 1:20
   d <- seq(as.Date("2020-01-01"), by = "month", length.out = 20)
   expect_gt(roll_r1(x, d), 0.7)
 })
 
 test_that("roll_r1 excludes Nov->Mar cross-year gaps from the calculation", {
-  # Two versions of the same values, differing only in whether the
-  # Nov->Mar pair is a genuine 1-month gap or a 4-month (Nov->Mar) gap.
-  # If the Nov->Mar pair were wrongly included, the two results would
-  # differ; since it's correctly excluded, they must be identical.
   x <- c(1, 5, 2, 8, 3, 9)
   d_within_season  <- as.Date(c("2020-07-01", "2020-08-01", "2020-09-01",
                                 "2020-10-01", "2020-11-01", "2020-12-01"))
   d_cross_year_gap <- as.Date(c("2020-07-01", "2020-08-01", "2020-09-01",
                                 "2020-10-01", "2020-11-01", "2021-03-01"))
-  # Both have the same diff-in-months pattern except the last pair (1 vs 4
-  # months apart) -- roll_r1 should treat that last pair as excluded in the
-  # second case, giving a DIFFERENT (not equal) result than if it were
-  # naively treated as adjacent.
+  # The Nov->Mar pair is excluded, so the results must differ
   r_within <- roll_r1(x, d_within_season)
   r_cross  <- roll_r1(x, d_cross_year_gap)
   expect_false(isTRUE(all.equal(r_within, r_cross)))
@@ -60,8 +41,6 @@ test_that("roll_var equals plain variance", {
 })
 
 test_that("roll_skew detects right-skew as positive (real, un-negated skewness)", {
-  # c(1,1,1,1,10) has positive raw (Fisher-Pearson) skewness (long right
-  # tail) -- roll_skew returns the real, un-negated value.
   x <- c(1, 1, 1, 1, 10)
   expect_gt(roll_skew(x), 0)
 })
@@ -84,13 +63,7 @@ test_that("edge_na_run on rev(x) counts the trailing NA run", {
   expect_equal(edge_na_run(rev(x)), 2L)
 })
 
-# ----------------------------------------------------------------------------
-# run_pixel_csd() integration test on small synthetic data (not the real
-# ~250k-pixel x 1GB matrices -- a deterministic 4-year synthetic series
-# with a clear seasonal + trend pattern, small enough for STL to converge
-# fast while still exercising the full interpolate -> STL -> deseasonalize
-# -> climate-correct -> rolling-CSD -> Kendall's tau pipeline end to end.
-# ----------------------------------------------------------------------------
+# run_pixel_csd() end to end on a small synthetic 4-year series
 
 test_that("run_pixel_csd processes a normal pixel end-to-end and correctly drops a high-NA pixel", {
   n_months <- 48  # Jan 2000 - Dec 2003
@@ -98,8 +71,6 @@ test_that("run_pixel_csd processes a normal pixel end-to-end and correctly drops
   month_of <- as.integer(format(dates, "%m"))
   t_idx    <- seq_len(n_months)
 
-  # Deterministic seasonal + trend + small secondary-frequency wobble (so
-  # STL has real structure to decompose without needing actual randomness).
   seasonal_pattern <- 0.10 * sin(2 * pi * (month_of - 1) / 12)
   wobble           <- 0.01 * sin(2 * pi * t_idx / 5)
   trend            <- 0.001 * t_idx
@@ -139,9 +110,7 @@ test_that("run_pixel_csd processes a normal pixel end-to-end and correctly drops
   expect_true(all(result$tau_r1 >= -1 & result$tau_r1 <= 1, na.rm = TRUE))
   expect_true(all(result$tau_var >= -1 & result$tau_var <= 1, na.rm = TRUE))
 
-  # Rolling r1/var/skew series: 2 rows (pixels) x (36 growing-season
-  # months - WIN=12 + 1 = 25) columns; row 1 (normal pixel) real values,
-  # row 2 (dropped pixel) all-NA, same shape as row 1 either way.
+  # 2 pixels x 25 windows (36 growing-season months - 12 + 1)
   r1_matrix   <- readRDS(r1_file)
   var_matrix  <- readRDS(var_file)
   skew_matrix <- readRDS(skew_file)

@@ -5,13 +5,7 @@ library(lubridate)
 
 source("../src/extract_pixel_matrix.R")
 
-# Tests extract_pixel_matrix() (shared by 01_extract_pixel_ndvi.R/
-# 01_extract_pixel_ndwi.R) plus those two scripts' own inline QC-masking
-# logic, which lives directly in each script rather than in a function.
-# Small synthetic rasters/boundaries only — the real ~1GB MODIS files are
-# too slow for unit tests. These exercise the same code paths (crop, mask,
-# monthly aggregation, metadata verification, QC masking) on tiny known
-# inputs where the correct answer can be hand-computed.
+# Tests for extract_pixel_matrix() and the 01 scripts' QC masks, on small synthetic rasters.
 
 make_square_boundary <- function(xmin, ymin, xmax, ymax) {
   st_as_sf(st_sfc(
@@ -21,10 +15,7 @@ make_square_boundary <- function(xmin, ymin, xmax, ymax) {
   ))
 }
 
-# ----------------------------------------------------------------------------
-# extract_pixel_matrix() — shared helper used by both 01_extract_pixel_ndvi.R
-# and 01_extract_pixel_ndwi.R
-# ----------------------------------------------------------------------------
+# extract_pixel_matrix()
 
 test_that("extract_pixel_matrix produces correct dimensions and monthly means", {
   dates <- as.Date(c("2020-01-15", "2020-01-20", "2020-02-10"))
@@ -52,10 +43,7 @@ test_that("extract_pixel_matrix produces correct dimensions and monthly means", 
 })
 
 test_that("extract_pixel_matrix crops/masks to the boundary, reducing valid pixel count", {
-  # tapp()'s `index` argument is ambiguous when nlyr(r) == 1 (a length-1
-  # character index gets misread as one of tapp's built-in time-step
-  # keywords) — always use >=2 layers/dates, matching how the real pipeline
-  # is always called (hundreds of layers), never a single-layer raster.
+  # Use >= 2 layers: tapp() misreads a single-layer index
   dates <- as.Date(c("2020-01-15", "2020-01-20"))
   r <- rast(nrows = 4, ncols = 4, nlyrs = 2, xmin = 0, xmax = 4, ymin = 0, ymax = 4,
             crs = "EPSG:4326")
@@ -118,9 +106,7 @@ test_that("verify_metadata_path errors when pixel count doesn't match", {
 })
 
 test_that("sample_only mode works with n_sample = 1 (regression test)", {
-  # Without drop = FALSE, values(...)[sample_cells, ] drops to a plain
-  # vector when n_sample == 1, breaking the colnames<- assignment right
-  # after it.
+  # n_sample = 1 must not drop the matrix to a vector
   dates <- as.Date(c("2020-01-15", "2020-02-10"))
   r <- rast(nrows = 4, ncols = 4, nlyrs = 2, xmin = 0, xmax = 4, ymin = 0, ymax = 4,
             crs = "EPSG:4326")
@@ -135,14 +121,10 @@ test_that("sample_only mode works with n_sample = 1 (regression test)", {
   )
 })
 
-# ----------------------------------------------------------------------------
-# NDWI-specific logic from 01_extract_pixel_ndwi.R (QC masking + formula) —
-# tested directly since it lives inline in that script, not in a function.
-# ----------------------------------------------------------------------------
+# NDWI QC mask and formula (inline in 01_extract_pixel_ndwi.R)
 
 test_that("QC bit-extraction (%% 4) matches real MODIS lookup table semantics", {
-  # Verified against the actual MOD09A1-061 QC lookup table earlier:
-  # 1073741824 = "ideal quality", 1073741877 = "less than ideal quality".
+  # From the MOD09A1 QC lookup: 1073741824 = ideal, 1073741877 = less than ideal
   expect_equal(1073741824 %% 4, 0)
   expect_equal(1073741877 %% 4, 1)
 })
@@ -167,20 +149,10 @@ test_that("NDWI formula computes correctly and QC-masks bad-quality cells", {
   expect_equal(vals[3], (0.2 - 0.1) / (0.2 + 0.1))
 })
 
-# ----------------------------------------------------------------------------
-# NDVI-specific logic from 01_extract_pixel_ndvi.R (VI_Quality QC masking) —
-# deliberately more lenient than NDWI's (accepts bits 0-1 <= 2, not == 0 only;
-# only bits 11 "not produced" are dropped). Tested directly since it lives
-# inline in that script, not in a function.
-# ----------------------------------------------------------------------------
+# NDVI QC mask (inline in 01_extract_pixel_ndvi.R): drops only bits 11
 
 test_that("VI_Quality bit-extraction (%% 4) matches real MOD13A1 values", {
-  # Real VI_Quality values observed in the actual raw NDVI file
-  # (data_common/raw/ndvi/MOD13A1.061_500m_aid0001.nc): 2116 = "good"
-  # (bits 00), 2061 = "produced, check other QA" (bits 01), 2062 = "most
-  # probably cloudy" (bits 10). 2119 extends the same pattern to bits 11
-  # (not independently confirmed against a real observed value, unlike the
-  # other three, but consistent with the documented bit-packing scheme).
+  # VI_Quality values with bits 0-1 = 00, 01, 10, 11
   expect_equal(2116 %% 4, 0)
   expect_equal(2061 %% 4, 1)
   expect_equal(2062 %% 4, 2)

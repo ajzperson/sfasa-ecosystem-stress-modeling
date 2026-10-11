@@ -2,20 +2,11 @@ library(tidyverse)
 
 source("pixel_approach/src/clustering_helpers.R")
 
-# Cross-validates the COMBINED (NDVI+NDWI 4-feature) clustering (06b) against
-# USFS ADS beetle-kill mortality (02e) -- same role as
-# 08_beetle_validation.R, but for the combined-feature clustering approach
-# instead of per-index clustering. Only one cluster assignment per pixel
-# now, so one chart, not two panels.
+# Share of pixels with 2015-2016 beetle mortality in each combined cluster.
 #
-# Output:
-#   pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf
-#   pixel_approach/charts/combined_beetle_tpa_by_cluster_ratio.pdf (same,
-#     bars as ratio vs. Cluster 1 instead of raw %) -- generated in parallel,
-#     raw chart/panel untouched
-#   pixel_approach/data/processed/combined_pixel_beetle_tpa.csv
-#   pixel_approach/data/processed/panel_beetle_combined.rds
-#   pixel_approach/data/processed/panel_beetle_combined_ratio.rds
+# Output: pixel_approach/charts/combined_beetle_tpa_by_cluster{,_ratio}.pdf
+#         pixel_approach/data/processed/combined_pixel_beetle_tpa.csv
+#         pixel_approach/data/processed/panel_beetle_combined{,_ratio}.rds
 
 VALIDATION_YEARS <- 2015:2016
 year_label <- if (length(VALIDATION_YEARS) == 1) as.character(VALIDATION_YEARS) else
@@ -51,16 +42,12 @@ zonal <- pixels |>
 cat("\n=== Combined: Zonal TPA by Cluster ===\n")
 print(zonal)
 
-# Relative risk and ratio_to_c1 are computed from the unrounded rate
-# (pct_with_mortality_exact), not the 1-decimal display value -- dividing
-# already-rounded percentages compounds their rounding error into the ratio.
+# Ratios use unrounded rates
 K <- max(zonal$cluster, na.rm = TRUE)
 rr_worst_vs_best <- zonal$pct_with_mortality_exact[zonal$cluster == K] /
   zonal$pct_with_mortality_exact[zonal$cluster == 1]
 cat(sprintf("  Relative risk (Cluster %d vs 1): %.2fx\n", K, rr_worst_vs_best))
 
-# Ratio vs. Cluster 1 (least-stressed), for the ratio-chart variant below --
-# Cluster 1 is 1.00x by construction.
 zonal <- zonal |>
   mutate(ratio_to_c1 = pct_with_mortality_exact / pct_with_mortality_exact[cluster == 1])
 
@@ -92,16 +79,9 @@ p_tpa <- ggplot(zonal, aes(x = factor(cluster), y = pct_with_mortality,
         plot.caption  = element_text(hjust = 0.5, size = 14, face = "bold", color = "#1B2A1F",
                                       margin = margin(t = 14)))
 
-# Title/subtitle only on the standalone chart -- kept off the base p_tpa so
-# the panel saved below stays clean for 11b_dashboard_combined.R (matches
-# 08_beetle_validation.R, where the per-index panel only ever gets a short
-# cfg$label title and the elaborate title/subtitle is added separately, at
-# ggsave time, for that script's own two-panel combined chart).
+# Title only on the standalone chart; the saved panel stays untitled for 11b
 p_tpa_standalone <- p_tpa +
   labs(title    = sprintf("USFS ADS Beetle Mortality by Combined Cluster (%s)", year_label),
-       # Wrapped -- at this chart's narrower standalone width (7in, vs the
-       # two-panel version's 12in that this same subtitle was sized for),
-       # the unwrapped string overflows past the right edge of the canvas.
        subtitle = str_wrap("% of pixels with bark beetle mortality (mean TPA shown for reference) — ground-truth evaluation, after cluster assignment", width = 70))
 
 ggsave("pixel_approach/charts/combined_beetle_tpa_by_cluster.pdf", plot = p_tpa_standalone, width = 7, height = 5, dpi = 150)
@@ -130,8 +110,7 @@ p_tpa_ratio_standalone <- p_tpa_ratio +
 ggsave("pixel_approach/charts/combined_beetle_tpa_by_cluster_ratio.pdf", plot = p_tpa_ratio_standalone, width = 7, height = 5, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_beetle_tpa_by_cluster_ratio.pdf\n")
 
-# Saved separately so 11b_dashboard_combined.R can assemble a one-page
-# summary without duplicating this plotting code.
+# Panels for 11b_dashboard_combined.R
 saveRDS(p_tpa, "pixel_approach/data/processed/panel_beetle_combined.rds")
 cat("✓ Saved: pixel_approach/data/processed/panel_beetle_combined.rds\n")
 

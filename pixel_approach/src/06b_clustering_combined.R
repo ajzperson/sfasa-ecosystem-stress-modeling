@@ -5,17 +5,12 @@ library(cluster)
 
 source("pixel_approach/src/clustering_helpers.R")
 
-# Exploratory alternative to 06_clustering.R: instead of clustering NDVI and
-# NDWI independently (2 features each: density-residualized tau_r1 +
-# tau_skew), combines both indices' features into one 4-feature K-means
-# clustering. Does not modify 06_clustering.R or its outputs -- this is a
-# separate approach, run and compared alongside it.
+# K-means stress tiers on NDVI and NDWI features together (4 features).
 #
-# Output:
-#   pixel_approach/data/processed/combined_pixel_clusters.csv
-#   pixel_approach/data/processed/combined_cluster_profile.csv
-#   pixel_approach/charts/combined_cluster_k_sweep.pdf
-#   pixel_approach/charts/combined_cluster_map.pdf
+# Output: pixel_approach/data/processed/combined_pixel_clusters.csv
+#         pixel_approach/data/processed/combined_cluster_profile.csv
+#         pixel_approach/charts/combined_cluster_k_sweep.pdf
+#         pixel_approach/charts/combined_cluster_map.pdf
 
 if (!exists("K"))              K              <- 4
 if (!exists("SEED"))           SEED           <- 42
@@ -45,9 +40,7 @@ ndwi_tau <- read_csv(NDWI_TAU_FILE, show_col_types = FALSE) |>
   filter(!is.na(tau_r1), !is.na(tau_skew)) |>
   select(pixel_id, tau_r1, tau_skew)
 
-# Inner join -- NDVI and NDWI don't drop exactly the same pixels in 03 (each
-# has its own missing-data pattern), so only pixels with a valid tau for
-# BOTH indices can go into a combined clustering.
+# Only pixels with valid tau for both indices
 d <- ndvi_tau |>
   inner_join(ndwi_tau, by = "pixel_id", suffix = c("_ndvi", "_ndwi"))
 cat(sprintf("✓ %d pixels with valid tau_r1/tau_skew for both NDVI and NDWI\n", nrow(d)))
@@ -71,17 +64,12 @@ d <- d |>
   left_join(base_level_ndwi, by = "pixel_id")
 stopifnot(!anyNA(d$base_level_ndvi), !anyNA(d$base_level_ndwi))
 
-# Each index's tau_r1/tau_skew residualized against its OWN baseline density
-# (not the other index's) -- same reasoning as 06_clustering.R, applied twice.
+# Each index is residualized against its own baseline density
 d <- residualize_tau(d, "tau_r1_ndvi", "tau_skew_ndvi", "base_level_ndvi",
                      "resid_tau_r1_ndvi", "resid_tau_skew_ndvi")
 d <- residualize_tau(d, "tau_r1_ndwi", "tau_skew_ndwi", "base_level_ndwi",
                      "resid_tau_r1_ndwi", "resid_tau_skew_ndwi")
 
-# Each index's skew residual is used unflipped, same reasoning as
-# 06_clustering.R: skewness's direction near a transition isn't forced to
-# match resid_tau_r1's "higher = more stressed" convention, since it depends
-# on which state the system is heading toward (not universal, unlike r1).
 feat <- d |>
   transmute(resid_tau_r1_ndvi,
             resid_tau_skew_ndvi,
@@ -97,10 +85,7 @@ cat(sprintf("Running k-means (k=%d, seed=%d) on combined 4-feature space...\n", 
 km <- sweep_res$km_final
 d$cluster_raw <- km$cluster
 
-# Composite/stress-rank score: unweighted sum of the same 4 z-scored
-# features used for clustering. Equivalent to ranking by PC1 for this data
-# (both give the identical cluster ordering), so the simpler, easier-to-
-# explain unweighted sum is used instead.
+# Stress score = sum of the 4 z-scored features (same cluster order as PC1)
 d$stress_score <- rowSums(feat)
 
 stress_rank <- d |>
@@ -119,7 +104,6 @@ cat(sprintf("✓ Cluster sizes (stress rank 1=least → %d=most): %s\n",
 write_csv(d, "pixel_approach/data/processed/combined_pixel_clusters.csv")
 cat("✓ Saved: pixel_approach/data/processed/combined_pixel_clusters.csv\n")
 
-# --- K-sweep chart ---
 p_sweep <- build_k_sweep_panel(sweep_df, K, "NDVI+NDWI-combined") +
   plot_annotation(
     title = sprintf("K-means Hyperparameter Sweep (K = 2-8), Combined NDVI+NDWI Features; selected K = %d shown in red", K),
@@ -128,7 +112,7 @@ p_sweep <- build_k_sweep_panel(sweep_df, K, "NDVI+NDWI-combined") +
 
 ggsave("pixel_approach/charts/combined_cluster_k_sweep.pdf", plot = p_sweep, width = 10, height = 4, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_cluster_k_sweep.pdf\n")
-# --- Cluster map ---
+
 p_map <- build_cluster_map_panel(
   d, sn_boundary, cluster_cols, clust_labels,
   sprintf("Combined NDVI+NDWI Clustering (k=%d) on 4 density-residualized features", K)
@@ -137,7 +121,6 @@ p_map <- build_cluster_map_panel(
 ggsave("pixel_approach/charts/combined_cluster_map.pdf", plot = p_map, width = 7, height = 7, dpi = 150)
 cat("✓ Saved: pixel_approach/charts/combined_cluster_map.pdf\n")
 
-# --- Cluster profile ---
 profile <- d |>
   group_by(cluster) |>
   summarise(
