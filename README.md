@@ -17,11 +17,11 @@ These findings support CSD statistics derived from satellite time series as earl
 
 > **Working directory:** run every script from the repo root — all paths in the scripts are relative to it. In RStudio, open `sfasa-ecosystem-stress-modeling.Rproj` to set this automatically.
 
-<div style="font-size: 1.5em; font-weight: 600;"><a href="docs_common/DATAPIPELINE.md">Acquiring Data</a></div>
+### [Acquiring Data](docs_common/DATAPIPELINE.md)
 
-<div style="font-size: 1.5em; font-weight: 600;"><a href="pixel_approach/docs/COMPUTATIONPIPELINE.md">Computing & Validating Early-Warning Signals Derived from Pixel Clustering</a></div>
+### [Computing & Validating Early-Warning Signals Derived from Pixel Clustering](pixel_approach/docs/COMPUTATIONPIPELINE.md)
 
-<div style="font-size: 1.5em; font-weight: 600;"><a href="pixel_approach/docs/sfasa2026_sierra_nevada_slides.pptx">Full Narrative, Method & Results</a></div>
+### [Full Narrative, Method & Results](https://docs.google.com/presentation/d/1WmMqazuEBWQy_pySLM5wL5oWiKb0uPgP/edit?usp=drive_link&ouid=101150743053205608667&rtpof=true&sd=true)
 
 ## Repo Layout
 
