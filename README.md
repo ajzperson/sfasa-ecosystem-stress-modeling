@@ -17,11 +17,11 @@ These findings support CSD statistics derived from satellite time series as earl
 
 > **Working directory:** run every script from the repo root — all paths in the scripts are relative to it. In RStudio, open `sfasa-ecosystem-stress-modeling.Rproj` to set this automatically.
 
-### [Acquiring Data](docs_common/DATAPIPELINE.md)
+<p><a href="docs_common/DATAPIPELINE.md"><img src="https://img.shields.io/badge/Acquiring%20Data-2f6fdb?style=for-the-badge" alt="Acquiring Data"></a></p>
 
-### [Computing & Validating Early-Warning Signals Derived from Pixel Clustering](pixel_approach/docs/COMPUTATIONPIPELINE.md)
+<p><a href="pixel_approach/docs/COMPUTATIONPIPELINE.md"><img src="https://img.shields.io/badge/Computing%20%26%20Validating%20Early--Warning%20Signals%20Derived%20from%20Pixel%20Clustering-2f6fdb?style=for-the-badge" alt="Computing & Validating Early-Warning Signals Derived from Pixel Clustering"></a></p>
 
-### [Full Narrative, Method & Results](https://docs.google.com/presentation/d/1WmMqazuEBWQy_pySLM5wL5oWiKb0uPgP/edit?usp=drive_link&ouid=101150743053205608667&rtpof=true&sd=true)
+<p><a href="https://docs.google.com/presentation/d/1WmMqazuEBWQy_pySLM5wL5oWiKb0uPgP/edit?usp=drive_link&ouid=101150743053205608667&rtpof=true&sd=true"><img src="https://img.shields.io/badge/Full%20Narrative%2C%20Method%20%26%20Results-2f6fdb?style=for-the-badge" alt="Full Narrative, Method & Results"></a></p>
 
 ## Repo Layout
 
