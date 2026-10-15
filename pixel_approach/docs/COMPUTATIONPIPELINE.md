@@ -1,4 +1,4 @@
-# SFASA 2026 Project — Computing & Validating Early-Warning Signals Derived from Pixel Clustering
+# Computing & Validating Early-Warning Signals Derived from Pixel Clustering
 
 ## [How to Run](#script-inputs-and-outputs)
 

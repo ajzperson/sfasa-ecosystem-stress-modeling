@@ -1,4 +1,4 @@
-# SFASA 2026 Project — Acquiring Data
+# Acquiring Data
 
 ## Setup and How to Run
 
