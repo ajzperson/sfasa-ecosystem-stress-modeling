@@ -1,4 +1,4 @@
-<div style="font-size: 2em; font-weight: 600;">SFASA 2026 Project — Computing & Validating Early-Warning Signals Derived from Pixel Clustering</div>
+# SFASA 2026 Project — Computing & Validating Early-Warning Signals Derived from Pixel Clustering
 
 ## [How to Run](#script-inputs-and-outputs)
 

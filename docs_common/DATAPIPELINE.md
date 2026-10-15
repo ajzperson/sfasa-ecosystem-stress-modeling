@@ -1,4 +1,4 @@
-<div style="font-size: 2em; font-weight: 600;">SFASA 2026 Project — Acquiring Data</div>
+# SFASA 2026 Project — Acquiring Data
 
 ## Setup and How to Run
 
