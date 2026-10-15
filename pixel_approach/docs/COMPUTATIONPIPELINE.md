@@ -1,6 +1,6 @@
 # Computing & Validating Early-Warning Signals Derived from Pixel Clustering
 
-## [How to Run](#script-inputs-and-outputs)
+### [How to Run](#script-inputs-and-outputs)
 
 ## Deep Dive
 
@@ -280,7 +280,7 @@ Tests whether the combined 4-feature clustering (`06b`) is rediscovering the sam
 
 ---
 
-## Script Inputs and Outputs
+### Script Inputs and Outputs
 
 > **Working directory:** run every script from the repo root. In RStudio, open `sfasa-ecosystem-stress-modeling.Rproj`.
 
