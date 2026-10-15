@@ -282,6 +282,8 @@ Tests whether the combined 4-feature clustering (`06b`) is rediscovering the sam
 
 ## Script Inputs and Outputs
 
+> **Working directory:** run every script from the repo root. In RStudio, open `sfasa-ecosystem-stress-modeling.Rproj`.
+
 | Script | Input | Output |
 |---|---|---|
 | `pixel_approach/src/01_extract_pixel_ndvi.R` (calls `extract_pixel_matrix.R`) | `data_common/raw/ndvi/MOD13A1.061_500m_aid0001.nc`<br>`data_common/processed/sierra_nevada_boundary.geojson` | `pixel_approach/data/processed/ndvi_matrix.rds`<br>`pixel_approach/data/processed/pixel_metadata.csv` |

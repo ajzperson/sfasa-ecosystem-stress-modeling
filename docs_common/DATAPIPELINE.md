@@ -2,6 +2,8 @@
 
 ## Setup and How to Run
 
+> **Working directory:** run every script from the repo root. In RStudio, open `sfasa-ecosystem-stress-modeling.Rproj`.
+
 | Script | Input | Output |
 | --- | --- | --- |
 | `packages.R` | — | installs required R packages — **run this first** |
