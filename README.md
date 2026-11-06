@@ -11,7 +11,7 @@ We analyzed monthly satellite NDVI (canopy greenness) and NDWI (canopy water con
 
 Damage rates increased monotonically across stress tiers in all three clusterings. Under the combined clustering, most-stressed pixels carried 1.79 times the fire risk and 1.35 times the beetle mortality risk of least-stressed pixels. The NDVI and NDWI clusterings produced comparable gradients on their own (fire relative risk (RR) 1.49 and 1.65; beetle mortality RR 1.29 and 1.35, most- versus least-stressed). Among the 219,637 pixels clustered by both indices, pixels flagged most-stressed by both NDVI and NDWI carried 1.37 times the fire risk and 1.14 times the beetle mortality risk of the weaker single-index flag.
 
-These findings support CSD statistics derived from satellite time series as early-warning indicators of forest collapse, identifiable in advance of the damage. The analysis establishes a population-level association between stress tier and damage rate rather than pixel-level prediction; regression directly on CSD features, and deep learning applied to raw index time series, are natural next steps.
+These findings support CSD statistics derived from satellite time series as early-warning indicators of forest collapse, identifiable in advance of the damage. The analysis establishes a population-level association between stress tier and damage rate; natural next steps are regression directly on the CSD features to give each pixel its own damage probability, and deep learning (e.g., LSTM or 1D-CNN) on the raw NDVI/NDWI time series, to learn early-warning signals that fixed CSD statistics may miss.
 
 ---
 
