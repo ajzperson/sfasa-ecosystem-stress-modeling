@@ -10,6 +10,7 @@ install.packages(c(
   "terra",         # raster data (NDVI, NDWI, VPD, PRISM, MTBS, SWE)
   "sf",            # spatial features
   "prism",         # PRISM climate data download
+  "elevatr",       # elevation download (03_download_elevation.R)
   "remotes",       # needed to install packages from GitHub
 
   # NA interpolation
@@ -45,7 +46,6 @@ install.packages(c(
   "caret",         # ML utilities & preprocessing
   "multcompView",  # Tukey HSD letters
   "ggsignif",      # significance brackets
-  "tigris",        # US Census county boundaries
-  "elevatr"        # elevation extraction (USGS 3DEP)
+  "tigris"         # US Census county boundaries
 ))
 remotes::install_github("earlywarningtoolbox/earlywarnings-R")

@@ -12,6 +12,7 @@
 | `01a_download_vpd.R` (optional) | `data_common/processed/sierra_nevada_boundary.geojson` | `data_common/raw/vpd/TerraClimate_vpd_2000-2025.nc`<br>• already tracked in git; only run this if you want to redownload it yourself |
 | `01b_download_swe.R` (optional) | `data_common/processed/sierra_nevada_boundary.geojson` | `data_common/raw/swe/TerraClimate_swe_2000-2025.nc`<br>• already tracked in git; only run this if you want to redownload it yourself |
 | `02_download_prism.R` (optional) | — | `data_common/raw/prism/prismz/`<br>• only run this if you don't want to download PRISM manually via `PRISM_source_location.md` in the **(manual)** step above |
+| `03_download_elevation.R` (optional) <img src="https://img.shields.io/badge/sfasa--expansion-e8710a" alt="sfasa-expansion" align="absbottom"> | `data_common/processed/sierra_nevada_boundary.geojson` | `data_common/raw/elevation/sierra_nevada_elevation_z9.tif`<br>• already tracked in git; only run this if you want to redownload it yourself |
 
 ## Deep Dive of Data Sources
 
@@ -28,6 +29,7 @@
    USFS IDS = US Forest Service, Insect and Disease Survey (also called the Aerial Detection Survey/ADS)
 9. **Fire Perimeters** — California historical fire perimeter polygons (CAL FIRE FRAP) (superseded by MTBS, **not used**)
 10. **MTBS** — Monitoring Trends in Burn Severity (pixel-level burn severity)
+11. **Elevation** — AWS terrain tiles (USGS 3DEP-based) <img src="https://img.shields.io/badge/sfasa--expansion-e8710a" alt="sfasa-expansion" align="absbottom">
 
 ### Raw Data Inventory
 
@@ -43,6 +45,7 @@
 | USFS IDS | `data_common/raw/forest_damage/CONUS_Region5_AllYears.gdb.zip`<br>See [FOREST_DAMAGE_source_location.md](../data_common/raw/forest_damage/FOREST_DAMAGE_source_location.md) | [USDA Forest Service Detection Surveys](https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/detection-surveys)<br>Scroll to "R5 IDS DATA DOWNLOADS" section<br>Download "R5 CA All Years IDS Data (ZIP)"<br>[Direct URL](https://www.fs.usda.gov/foresthealth/docs/IDS_Data_for_Download/CONUS_Region5_AllYears.gdb.zip)<br>No login required | 1997–2025 · annual · 348,829 damage polygons (99.2% Region 5 California; 0.8% spillover from neighboring Regions 4/6) |
 | Fire Perimeters (**not used**) | `data_common/raw/fire_perimeters/California_Historic_Fire_Perimeters_-4934337877712688794.gpkg`<br>See [FIRE_PERIMETERS_source_location.md](../data_common/raw/fire_perimeters/FIRE_PERIMETERS_source_location.md) | [CAL FIRE Hub — California Historical Fire Perimeters](https://hub-calfire-forestry.hub.arcgis.com/datasets/CALFIRE-Forestry::california-historical-fire-perimeters/about?layer=0)<br>Download → GeoPackage | California statewide, historical fire perimeter polygons |
 | MTBS | `data_common/raw/mtbs/bsp_ugjds3epryqgif0ej5sb.zip` | [MTBS Burn Severity Direct Download](https://burnseverity.cr.usgs.gov/direct-download)<br>Click "MTBS" → select California → select years 2000–2019 (single multi-year request supported)<br>Request is processed asynchronously (~1 hour); download link sent via email | California, 2000–2019 · annual thematic burn severity mosaics · GeoTIFF · 30m |
+| Elevation ![sfasa-expansion](https://img.shields.io/badge/sfasa--expansion-e8710a) | `data_common/raw/elevation/sierra_nevada_elevation_z9.tif` | `get_elev_raster(sn_aoi, z = 9, src = "aws", clip = "bbox")` (R package `elevatr`), no login required | Sierra Nevada ecoregion's bounding box · static (one layer) · ~0.0012° (~110m) |
 
 ### EPA Boundary
 
@@ -115,3 +118,11 @@
 - **References:**
   - [MTBS home](https://www.mtbs.gov/)
   - [MTBS Product Descriptions](https://www.mtbs.gov/product-descriptions)
+
+### Elevation — AWS terrain tiles <img src="https://img.shields.io/badge/sfasa--expansion-e8710a" alt="sfasa-expansion" align="absbottom">
+- **Variable:** elevation, in meters
+- `src_common/03_download_elevation.R` → `data_common/raw/elevation/sierra_nevada_elevation_z9.tif`
+
+- **References:**
+  - [elevatr R package](https://github.com/USEPA/elevatr)
+  - [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
